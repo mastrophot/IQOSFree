@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кидай Курити</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation; /* Запобігає затримкам кліків на мобільних */
+        }
+        .timer-text {
+            font-size: 6rem; /* 96px */
+            line-height: 1;
+        }
+        .status-text {
+            font-size: 1.5rem; /* 24px */
+            line-height: 2rem; /* 32px */
+        }
+        /* Custom style for disabled button */
+        button:disabled {
+            background-color: #4b5563; /* gray-600 */
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        /* Simple animation for element appearance */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.25rem; /* 20px */
+            height: 1.25rem; /* 20px */
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #cbd5e1; /* slate-300 */
+            font-size: 0.75rem; /* 12px */
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 0.5rem;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .info-icon:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white flex items-center justify-center min-h-screen p-4">
+
+
+    <div id="loader" class="text-center">
+        <p class="text-2xl">Завантаження даних...</p>
+    </div>
+
+
+    <div id="app" class="hidden w-full max-w-md mx-auto text-center fade-in">
+        <!-- Main screen -->
+        <div id="main-view">
+            <h1 class="text-4xl font-bold mb-4 text-emerald-400">Кидай Курити</h1>
+            
+            <div class="my-8">
+                <div id="timer" class="timer-text font-black text-red-500">00:00</div>
+                <p id="statusMessage" class="status-text font-bold text-slate-300">Час до наступної</p>
+            </div>
+
+
+            <button id="smokeButton" class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold py-4 px-6 rounded-xl text-2xl transition-all duration-200 shadow-lg shadow-emerald-500/20">
+                Я щойно покурив
+            </button>
+
+
+            <!-- Statistics -->
+            <div class="mt-12 p-6 bg-slate-800 rounded-xl space-y-4">
+                <h2 class="text-2xl font-bold text-slate-200">Статистика</h2>
+                <div class="flex justify-around text-center">
+                    <div>
+                        <p class="text-3xl font-bold text-amber-400" id="smokedToday">0</p>
+                        <p class="text-slate-400">Сьогодні <span class="info-icon" data-info-for="smokedToday">ⓘ</span></p>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-bold text-green-400" id="moneySaved">0.00 грн</p>
+                        <p class="text-slate-400">Збережено <span class="info-icon" data-info-for="moneySaved">ⓘ</span></p>
+                    </div>
+                </div>
+                <!-- New statistics for comparison -->
+                <div class="flex justify-around text-center mt-4 border-t border-slate-700 pt-4">
+                    <div>
+                        <p class="text-3xl font-bold text-purple-400" id="totalNotSmoked">0</p>
+                        <p class="text-slate-400">Невикурених (всього) <span class="info-icon" data-info-for="totalNotSmoked">ⓘ</span></p>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-bold text-indigo-400" id="totalMoneySaved">0.00 грн</p>
+                        <p class="text-slate-400">Зекономлено (всього) <span class="info-icon" data-info-for="totalMoneySaved">ⓘ</span></p>
+                    </div>
+                </div>
+                <div class="flex justify-center text-center mt-4 border-t border-slate-700 pt-4">
+                    <div>
+                        <p class="text-3xl font-bold text-cyan-400" id="smokeFreeStreak">0 годин</p>
+                        <p class="text-slate-400">Без сигарет <span class="info-icon" data-info-for="smokeFreeStreak">ⓘ</span></p>
+                    </div>
+                </div>
+                <!-- Added for longest smoke-free streak -->
+                <div class="flex justify-center text-center mt-4 border-t border-slate-700 pt-4">
+                    <div>
+                        <p class="text-3xl font-bold text-orange-400" id="longestSmokeFreeStreak">0 годин</p>
+                        <p class="text-slate-400">Найдовша серія <span class="info-icon" data-info-for="longestSmokeFreeStreak">ⓘ</span></p>
+                    </div>
+                </div>
+                <!-- Detailed comparison -->
+                <div class="mt-4 border-t border-slate-700 pt-4 text-left">
+                    <h3 class="text-xl font-bold text-slate-300 mb-2">Порівняння зі старою звичкою</h3>
+                    <p class="text-slate-400">Мав би витратити: <span id="expectedTotalMoney" class="font-bold text-white">0.00 грн</span> <span class="info-icon" data-info-for="expectedTotalMoney">ⓘ</span></p>
+                </div>
+            </div>
+
+            <!-- Goals and Achievements (Combined Collapsible) -->
+            <details id="achievementsSection" class="mt-12 p-6 bg-slate-800 rounded-xl space-y-4 text-left">
+                <summary class="text-2xl font-bold text-slate-200 cursor-pointer">Цілі та Досягнення</summary>
+                
+                <!-- Completed Achievements (always visible inside the main collapsible) -->
+                <div id="completedAchievementsList" class="space-y-2">
+                    <h3 class="text-xl font-bold text-slate-300 mt-4">Виконані</h3>
+                    <ul class="space-y-2">
+                        <li id="liCompletedAchievementHalfDay" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">Пів дня без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementHour" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">Година без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementDay" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">День без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementDay2" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">2 дні без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementWeek" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">Тиждень без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementWeek2" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">2 тижні без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementMonth" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">Місяць без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementMonth2" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">2 місяці без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementHealthyLungs" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">Здорові легені (3 місяці)</span>
+                        </li>
+                        <li id="liCompletedAchievementMonth6" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">6 місяців без диму</span>
+                        </li>
+                        <li id="liCompletedAchievementYear" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">✅</span>
+                            <span class="text-slate-300">Рік без диму</span>
+                        </li>
+                        <!-- New money saved achievements - Completed -->
+                        <li id="liCompletedAchievementSaved100" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">💰</span>
+                            <span class="text-slate-300">Заощаджено 100 грн</span>
+                        </li>
+                        <li id="liCompletedAchievementSaved500" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">💰</span>
+                            <span class="text-slate-300">Заощаджено 500 грн</span>
+                        </li>
+                        <li id="liCompletedAchievementSaved1000" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">💰</span>
+                            <span class="text-slate-300">Заощаджено 1000 грн</span>
+                        </li>
+                        <li id="liCompletedAchievementSaved5000" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">💰</span>
+                            <span class="text-slate-300">Заощаджено 5000 грн</span>
+                        </li>
+                        <li id="liCompletedAchievementSaved10000" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">💰</span>
+                            <span class="text-slate-300">Заощаджено 10000 грн</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Uncompleted Achievements (Nested Collapsible) -->
+                <details id="uncompletedAchievementsSubSection" class="mt-4 border-t border-slate-700 pt-4">
+                    <summary class="text-xl font-bold text-slate-300 cursor-pointer">Невиконані</summary>
+                    <ul class="space-y-2 mt-2">
+                        <li id="liUncompletedAchievementHalfDay" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Пів дня без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementHour" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Година без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementDay" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">День без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementDay2" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">2 дні без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementWeek" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Тиждень без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementWeek2" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">2 тижні без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementMonth" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Місяць без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementMonth2" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">2 місяці без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementHealthyLungs" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Здорові легені (3 місяці)</span>
+                        </li>
+                        <li id="liUncompletedAchievementMonth6" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">6 місяців без диму</span>
+                        </li>
+                        <li id="liUncompletedAchievementYear" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Рік без диму</span>
+                        </li>
+                        <!-- New money saved achievements - Uncompleted -->
+                        <li id="liUncompletedAchievementSaved100" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Заощадити 100 грн</span>
+                        </li>
+                        <li id="liUncompletedAchievementSaved500" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Заощадити 500 грн</span>
+                        </li>
+                        <li id="liUncompletedAchievementSaved1000" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Заощадити 1000 грн</span>
+                        </li>
+                        <li id="liUncompletedAchievementSaved5000" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Заощадити 5000 грн</span>
+                        </li>
+                        <li id="liUncompletedAchievementSaved10000" class="flex items-center hidden">
+                            <span class="text-2xl mr-2">❌</span>
+                            <span class="text-slate-300">Заощадити 10000 грн</span>
+                        </li>
+                    </ul>
+                </details>
+            </details>
+
+            <!-- Money Saved Chart Section (Collapsible) -->
+            <details id="moneySavedChartSection" class="mt-12 p-6 bg-slate-800 rounded-xl space-y-4 text-left">
+                <summary class="text-2xl font-bold text-slate-200 cursor-pointer">Візуалізація економії</summary>
+                <div class="chart-container mt-4 w-full h-48"> <!-- Added fixed height to container -->
+                    <h3 class="text-xl font-bold text-slate-300 mb-2">Зекономлено грошей (грн)</h3>
+                    <canvas id="moneySavedChart" class="w-full h-full"></canvas> <!-- Canvas now takes full height of parent -->
+                </div>
+            </details>
+
+            <!-- Daily Smoking Chart Section (Collapsible) -->
+            <details id="dailySmokingChartSection" class="mt-12 p-6 bg-slate-800 rounded-xl space-y-4 text-left">
+                <summary class="text-2xl font-bold text-slate-200 cursor-pointer">Графік куріння за день</summary>
+                <div class="chart-container mt-4 w-full h-48">
+                    <h3 class="text-xl font-bold text-slate-300 mb-2">Час викурених сигарет сьогодні</h3>
+                    <canvas id="dailySmokeChart" class="w-full h-full"></canvas>
+                </div>
+            </details>
+            
+            <button id="openSettingsButton" class="mt-6 text-slate-400 hover:text-white transition">Налаштування</button>
+        </div>
+
+
+        <!-- Settings screen -->
+        <div id="settings-view" class="hidden p-6 bg-slate-800 rounded-xl">
+            <h2 class="text-2xl font-bold mb-4">Налаштування</h2>
+            <div class="space-y-4 text-left">
+                <div>
+                    <label for="packPrice" class="block mb-1 text-slate-300">Ціна пачки (грн):</label>
+                    <input type="number" id="packPrice" class="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label for="packSize" class="block mb-1 text-slate-300">Кількість в пачці:</label>
+                    <input type="number" id="packSize" class="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label for="oldHabit" class="block mb-1 text-slate-300">Скільки курив в день (раніше):</label>
+                    <input type="number" id="oldHabit" class="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label for="smokeIntervalMinutes" class="block mb-1 text-slate-300">Інтервал між сигаретами (хвилини):</label>
+                    <input type="number" id="smokeIntervalMinutes" class="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" min="1" step="1">
+                </div>
+            </div>
+            <div class="mt-6 flex gap-4">
+                <button id="saveSettingsButton" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg transition">Зберегти</button>
+                <button id="closeSettingsButton" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg transition">Закрити</button>
+            </div>
+             <button id="resetDataButton" class="mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition">Скинути всі дані</button>
+        </div>
+    </div>
+    
+    <!-- Confirmation modal window -->
+    <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-lg p-6 max-w-sm w-full text-center">
+            <p id="modalText" class="text-lg mb-6">Ви впевнені?</p>
+            <div class="flex gap-4">
+                <button id="confirmYes" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Так</button>
+                <button id="confirmNo" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg">Ні</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Modal Window -->
+    <div id="infoModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 rounded-lg p-6 max-w-lg w-full text-left relative">
+            <button id="closeInfoModal" class="absolute top-3 right-3 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            <h3 id="infoModalTitle" class="text-2xl font-bold mb-4 text-emerald-400"></h3>
+            <p id="infoModalContent" class="text-slate-300"></p>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // Import necessary functions from Firebase SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+
+        // --- FIREBASE CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyASpsqHjAKc-dHe2pps1MYF0WYJEJkkUbE",
+            authDomain: "quit-smoking-max.firebaseapp.com",
+            projectId: "quit-smoking-max",
+            storageBucket: "quit-smoking-max.firebasestorage.app",
+            messagingSenderId: "53877466841",
+            appId: "1:53877466841:web:cde808b8a76596b19740c8"
+        };
+
+        const appId = firebaseConfig.appId || 'quit-smoking-app-default';
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+
+        // --- DOM ELEMENTS ---
+        const loader = document.getElementById('loader');
+        const appContainer = document.getElementById('app');
+        const mainView = document.getElementById('main-view');
+        const settingsView = document.getElementById('settings-view');
+        const timerEl = document.getElementById('timer');
+        const statusMessageEl = document.getElementById('statusMessage');
+        const smokeButton = document.getElementById('smokeButton');
+        const smokedTodayEl = document.getElementById('smokedToday');
+        const moneySavedEl = document.getElementById('moneySaved');
+        
+        const totalNotSmokedEl = document.getElementById('totalNotSmoked');
+        const totalMoneySavedEl = document.getElementById('totalMoneySaved');
+        const smokeFreeStreakEl = document.getElementById('smokeFreeStreak');
+        const longestSmokeFreeStreakEl = document.getElementById('longestSmokeFreeStreak'); // New DOM element
+        const expectedTotalMoneyEl = document.getElementById('expectedTotalMoney');
+
+        const achievementsSection = document.getElementById('achievementsSection');
+        const completedAchievementsList = document.getElementById('completedAchievementsList');
+        const uncompletedAchievementsSubSection = document.getElementById('uncompletedAchievementsSubSection');
+
+        // DOM elements for completed achievements
+        const liCompletedAchievementHalfDayEl = document.getElementById('liCompletedAchievementHalfDay');
+        const liCompletedAchievementHourEl = document.getElementById('liCompletedAchievementHour');
+        const liCompletedAchievementDayEl = document.getElementById('liCompletedAchievementDay');
+        const liCompletedAchievementDay2El = document.getElementById('liCompletedAchievementDay2');
+        const liCompletedAchievementWeekEl = document.getElementById('liCompletedAchievementWeek');
+        const liCompletedAchievementWeek2El = document.getElementById('liCompletedAchievementWeek2');
+        const liCompletedAchievementMonthEl = document.getElementById('liCompletedAchievementMonth');
+        const liCompletedAchievementMonth2El = document.getElementById('liCompletedAchievementMonth2');
+        const liCompletedAchievementHealthyLungsEl = document.getElementById('liCompletedAchievementHealthyLungs');
+        const liCompletedAchievementMonth6El = document.getElementById('liCompletedAchievementMonth6');
+        const liCompletedAchievementYearEl = document.getElementById('liCompletedAchievementYear');
+        // New money saved achievement elements - Completed
+        const liCompletedAchievementSaved100El = document.getElementById('liCompletedAchievementSaved100');
+        const liCompletedAchievementSaved500El = document.getElementById('liCompletedAchievementSaved500');
+        const liCompletedAchievementSaved1000El = document.getElementById('liCompletedAchievementSaved1000');
+        const liCompletedAchievementSaved5000El = document.getElementById('liCompletedAchievementSaved5000');
+        const liCompletedAchievementSaved10000El = document.getElementById('liCompletedAchievementSaved10000');
+
+
+        // DOM elements for uncompleted achievements
+        const liUncompletedAchievementHalfDayEl = document.getElementById('liUncompletedAchievementHalfDay');
+        const liUncompletedAchievementHourEl = document.getElementById('liUncompletedAchievementHour');
+        const liUncompletedAchievementDayEl = document.getElementById('liUncompletedAchievementDay');
+        const liUncompletedAchievementDay2El = document.getElementById('liUncompletedAchievementDay2');
+        const liUncompletedAchievementWeekEl = document.getElementById('liUncompletedAchievementWeek');
+        const liUncompletedAchievementWeek2El = document.getElementById('liUncompletedAchievementWeek2');
+        const liUncompletedAchievementMonthEl = document.getElementById('liUncompletedAchievementMonth');
+        const liUncompletedAchievementMonth2El = document.getElementById('liUncompletedAchievementMonth2');
+        const liUncompletedAchievementHealthyLungsEl = document.getElementById('liUncompletedAchievementHealthyLungs');
+        const liUncompletedAchievementMonth6El = document.getElementById('liUncompletedAchievementMonth6');
+        const liUncompletedAchievementYearEl = document.getElementById('liUncompletedAchievementYear');
+        // New money saved achievement elements - Uncompleted
+        const liUncompletedAchievementSaved100El = document.getElementById('liUncompletedAchievementSaved100');
+        const liUncompletedAchievementSaved500El = document.getElementById('liUncompletedAchievementSaved500');
+        const liUncompletedAchievementSaved1000El = document.getElementById('liUncompletedAchievementSaved1000');
+        const liUncompletedAchievementSaved5000El = document.getElementById('liUncompletedAchievementSaved5000');
+        const liUncompletedAchievementSaved10000El = document.getElementById('liUncompletedAchievementSaved10000');
+        
+        const openSettingsButton = document.getElementById('openSettingsButton');
+        const closeSettingsButton = document.getElementById('closeSettingsButton');
+        const saveSettingsButton = document.getElementById('saveSettingsButton');
+        const resetDataButton = document.getElementById('resetDataButton');
+        
+        const packPriceInput = document.getElementById('packPrice');
+        const packSizeInput = document.getElementById('packSize'); 
+        const oldHabitInput = document.getElementById('oldHabit');
+        const smokeIntervalMinutesInput = document.getElementById('smokeIntervalMinutes');
+
+        const moneySavedChartSection = document.getElementById('moneySavedChartSection');
+        const moneySavedChartCanvas = document.getElementById('moneySavedChart');
+
+        // New DOM elements for daily smoking chart
+        const dailySmokingChartSection = document.getElementById('dailySmokingChartSection');
+        const dailySmokeChartCanvas = document.getElementById('dailySmokeChart');
+
+
+        const confirmModal = document.getElementById('confirmModal');
+        const modalText = document.getElementById('modalText');
+        const confirmYes = document.getElementById('confirmYes');
+        const confirmNo = document.getElementById('confirmNo');
+
+        // Info Modal DOM Elements
+        const infoModal = document.getElementById('infoModal');
+        const closeInfoModal = document.getElementById('closeInfoModal');
+        const infoModalTitle = document.getElementById('infoModalTitle');
+        const infoModalContent = document.getElementById('infoModalContent');
+        const infoIcons = document.querySelectorAll('.info-icon'); // Select all info icons
+
+
+        // --- APPLICATION STATE ---
+        let userId = null;
+        let dataRef = null;
+        let appData = {
+            lastSmokeTime: null,
+            smokeHistory: [],
+            settings: {
+                packPrice: 100,
+                packSize: 20,
+                oldHabit: 20, // Average number of cigarettes per day before using the app
+                smokeIntervalMinutes: 60 // Default: 60 minutes (1 hour)
+            },
+            appStartDate: null, // Timestamp when app data was first initialized/saved
+            achievements: { // Object to store achievement status
+                halfDaySmokeFree: false,
+                hourSmokeFree: false,
+                daySmokeFree: false,
+                day2SmokeFree: false,
+                weekSmokeFree: false,
+                week2SmokeFree: false,
+                monthSmokeFree: false,
+                month2SmokeFree: false,
+                healthyLungs: false,
+                month6SmokeFree: false,
+                yearSmokeFree: false,
+                // New money saved achievements
+                saved100UAH: false,
+                saved500UAH: false,
+                saved1000UAH: false,
+                saved5000UAH: false,
+                saved10000UAH: false,
+                longestSmokeFreeStreakHours: 0 // New field for longest streak
+            },
+            dailyMoneySaved: []
+        };
+        const HALFDAY_SMOKE_FREE_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+
+        let moneySavedChartInstance = null;
+        let dailySmokeChartInstance = null; // New chart instance
+        let eventListenersAttached = false;
+
+
+        // --- FUNCTIONS ---
+
+
+        function showConfirm(text, onConfirm) {
+            modalText.textContent = text;
+            confirmModal.classList.remove('hidden');
+            
+            const newConfirmYes = confirmYes.cloneNode(true);
+            confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
+            
+            const newConfirmNo = confirmNo.cloneNode(true);
+            confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
+
+
+            document.getElementById('confirmYes').onclick = () => {
+                onConfirm();
+                confirmModal.classList.add('hidden');
+            };
+            document.getElementById('confirmNo').onclick = () => {
+                confirmModal.classList.add('hidden');
+            };
+        }
+
+        // Info content for the modal
+        const infoContent = {
+            smokedToday: {
+                title: "Викурених сьогодні",
+                description: "Цей показник показує кількість сигарет, які ви викурили з початку поточної доби (з 00:00). Він оновлюється щосекунди, а також після кожного натискання кнопки 'Я щойно покурив'."
+            },
+            moneySaved: {
+                title: "Заощаджено сьогодні",
+                description: "Ця сума показує, скільки грошей ви заощадили сьогодні, не викуривши сигарети, які ви б викурили за вашою старою звичкою. Оновлюється щосекунди."
+            },
+            totalNotSmoked: {
+                title: "Невикурених (всього)",
+                description: "Загальна кількість сигарет, які ви не викурили з моменту початку використання додатку, порівняно з вашою старою звичкою. Оновлюється щосекунди."
+            },
+            totalMoneySaved: {
+                title: "Зекономлено (всього)",
+                description: "Загальна сума грошей, яку ви заощадили з моменту початку використання додатку. Оновлюється щосекунди."
+            },
+            smokeFreeStreak: {
+                title: "Без сигарет (поточна серія)",
+                description: "Показує, скільки часу (днів та годин) ви вже не курите з моменту останньої сигарети. Оновлюється щосекунди. Скидається, коли ви натискаєте кнопку 'Я щойно покурив'."
+            },
+            longestSmokeFreeStreak: {
+                title: "Найдовша серія без сигарет",
+                description: "Ваш особистий рекорд часу (днів та годин) без куріння. Оновлюється лише тоді, коли ваша поточна серія перевищує цей рекорд."
+            },
+            expectedTotalMoney: {
+                title: "Мав би витратити (сьогодні)",
+                description: "Сума грошей, яку ви б витратили на сигарети сьогодні, виходячи з вашої старої щоденної звички (кількість сигарет на день). Оновлюється щосекунди."
+            }
+        };
+
+        function showInfoModal(key) {
+            const data = infoContent[key];
+            if (data) {
+                infoModalTitle.textContent = data.title;
+                infoModalContent.textContent = data.description;
+                infoModal.classList.remove('hidden');
+            }
+        }
+
+        function closeInfoModalHandler() {
+            infoModal.classList.add('hidden');
+        }
+
+
+        async function loadData() {
+            if (!userId) {
+                console.error("[loadData] userId is null, cannot load data.");
+                return;
+            }
+            console.log(`[loadData] Loading data for userId: ${userId}`);
+            dataRef = doc(db, `artifacts/${appId}/users/${userId}/smokingData/data`);
+            try {
+                const docSnap = await getDoc(dataRef);
+                if (docSnap.exists()) {
+                    console.log("[loadData] Document exists, loading data.");
+                    const loadedData = docSnap.data();
+                    appData.lastSmokeTime = loadedData.lastSmokeTime || null;
+                    appData.smokeHistory = loadedData.smokeHistory || [];
+                    if (loadedData.settings && loadedData.settings.smokeIntervalHours !== undefined && loadedData.settings.smokeIntervalMinutes === undefined) {
+                        loadedData.settings.smokeIntervalMinutes = loadedData.settings.smokeIntervalHours * 60;
+                        delete loadedData.settings.smokeIntervalHours;
+                    }
+                    appData.settings = { ...appData.settings, ...loadedData.settings };
+                    appData.appStartDate = loadedData.appStartDate || Date.now();
+                    // Ensure all achievement keys exist, merging loaded with defaults
+                    appData.achievements = { ...appData.achievements, ...loadedData.achievements };
+                    // Ensure new longestSmokeFreeStreakHours is loaded, or defaults to 0
+                    if (loadedData.achievements && loadedData.achievements.longestSmokeFreeStreakHours !== undefined) {
+                        appData.achievements.longestSmokeFreeStreakHours = loadedData.achievements.longestSmokeFreeStreakHours;
+                    } else {
+                        appData.achievements.longestSmokeFreeStreakHours = 0;
+                    }
+                    appData.dailyMoneySaved = loadedData.dailyMoneySaved || [];
+                } else {
+                    console.log("No such document! Creating one.");
+                    appData.appStartDate = Date.now();
+                    appData.dailyMoneySaved = [];
+                    await saveData();
+                }
+            } catch (error) {
+                console.error("Error loading data: ", error);
+            }
+            populateMissingDailyMoneySaved();
+            updateSettingsInputs();
+            setInterval(updateUI, 1000);
+            loader.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            console.log("[loadData] App container should now be visible.");
+
+            if (!eventListenersAttached) {
+                smokeButton.addEventListener('click', handleSmoke);
+                openSettingsButton.addEventListener('click', toggleSettingsView);
+                closeSettingsButton.addEventListener('click', toggleSettingsView);
+                saveSettingsButton.addEventListener('click', handleSaveSettings);
+                resetDataButton.addEventListener('click', handleResetData);
+                closeInfoModal.addEventListener('click', closeInfoModalHandler); // Add listener for info modal
+
+                infoIcons.forEach(icon => {
+                    icon.addEventListener('click', (event) => {
+                        const infoKey = event.target.dataset.infoFor;
+                        showInfoModal(infoKey);
+                    });
+                });
+
+                eventListenersAttached = true;
+                console.log("[loadData] Event listeners attached.");
+            }
+        }
+
+
+        async function saveData() {
+            if (!dataRef) return;
+            try {
+                await setDoc(dataRef, appData);
+                console.log("[saveData] Data saved successfully.");
+            } catch (error) {
+                console.error("Error saving data: ", error);
+            }
+        }
+
+
+        function updateUI() {
+            const now = new Date().getTime();
+            const currentSmokeInterval = appData.settings.smokeIntervalMinutes * 60 * 1000;
+            const timeSinceLastSmoke = appData.lastSmokeTime ? now - appData.lastSmokeTime : currentSmokeInterval;
+            const timeRemaining = currentSmokeInterval - timeSinceLastSmoke;
+
+
+            if (timeRemaining > 0) {
+                const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+                timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                timerEl.classList.remove('text-green-400');
+                timerEl.classList.add('text-red-500');
+                statusMessageEl.textContent = 'Час до наступної';
+                smokeButton.disabled = true;
+            } else {
+                timerEl.textContent = "GO!";
+                timerEl.classList.remove('text-red-500');
+                timerEl.classList.add('text-green-400');
+                statusMessageEl.textContent = 'Можна курити';
+                smokeButton.disabled = false;
+            }
+
+
+            updateStatistics(now);
+            updateAchievements(now);
+            updateCurrentDailyMoneySaved(now);
+
+            if (!moneySavedChartSection.hasAttribute('open')) {
+                if (moneySavedChartInstance) {
+                    moneySavedChartInstance.destroy();
+                    moneySavedChartInstance = null;
+                }
+            } else {
+                renderMoneySavedChart();
+            }
+
+            // Only render daily smoke chart if the section is open
+            if (!dailySmokingChartSection.hasAttribute('open')) {
+                if (dailySmokeChartInstance) {
+                    dailySmokeChartInstance.destroy();
+                    dailySmokeChartInstance = null;
+                }
+            } else {
+                renderDailySmokeChart();
+            }
+        }
+
+        // Helper function to format hours into a readable string (e.g., "X днів Y годин")
+        function formatHoursToReadable(totalHours) {
+            if (totalHours < 24) {
+                return `${totalHours} годин`;
+            } else {
+                const days = Math.floor(totalHours / 24);
+                const remainingHours = totalHours % 24;
+                let result = `${days} днів`;
+                if (remainingHours > 0) {
+                    result += ` ${remainingHours} годин`;
+                }
+                return result;
+            }
+        }
+        
+        function updateStatistics(now) {
+            const today = new Date(now);
+            today.setHours(0, 0, 0, 0);
+            const todayTimestamp = today.getTime();
+
+
+            const smokedTodayCount = appData.smokeHistory.filter(ts => ts >= todayTimestamp).length;
+            const { packPrice, packSize, oldHabit } = appData.settings;
+            const pricePerCig = (packSize > 0) ? packPrice / packSize : 0;
+
+            const hoursPassedToday = (now - todayTimestamp) / (1000 * 60 * 60);
+            // Calculate expected smokes today, ensuring it's not negative and rounded for display
+            const expectedSmokesToday = Math.max(0, (oldHabit / 24) * hoursPassedToday);
+            smokedTodayEl.textContent = `${smokedTodayCount} (з ${Math.round(expectedSmokesToday)})`;
+
+
+            const savedSmokesToday = Math.max(0, expectedSmokesToday - smokedTodayCount);
+            const savedMoneyToday = savedSmokesToday * pricePerCig;
+            moneySavedEl.textContent = `${savedMoneyToday.toFixed(2)} грн`;
+
+            const daysSinceAppStart = (now - appData.appStartDate) / (1000 * 60 * 60 * 24);
+            const expectedTotalSmokes = daysSinceAppStart * oldHabit;
+            const actualTotalSmokes = appData.smokeHistory.length;
+            const totalNotSmoked = Math.max(0, Math.floor(expectedTotalSmokes - actualTotalSmokes));
+            const totalMoneySaved = totalNotSmoked * pricePerCig;
+
+            // Calculate percentage of total not smoked
+            let totalNotSmokedPercentage = 0;
+            if (expectedTotalSmokes > 0) {
+                totalNotSmokedPercentage = (totalNotSmoked / expectedTotalSmokes) * 100;
+            }
+            totalNotSmokedEl.textContent = `${totalNotSmoked} (${totalNotSmokedPercentage.toFixed(0)}% від потенціалу)`;
+
+
+            totalMoneySavedEl.textContent = `${totalMoneySaved.toFixed(2)} грн`;
+
+            // Calculate smoke-free streak in hours
+            let streakHours = 0;
+            if (appData.lastSmokeTime === null) {
+                // If never smoked, streak counts from app start date
+                streakHours = Math.floor((now - appData.appStartDate) / (1000 * 60 * 60));
+            } else {
+                // If smoked, streak counts from the last cigarette
+                const lastSmokeTime = appData.lastSmokeTime;
+                const currentTime = now;
+
+                // Calculate difference in hours
+                const diffTime = Math.abs(currentTime - lastSmokeTime);
+                streakHours = Math.floor(diffTime / (1000 * 60 * 60));
+
+                // If the last cigarette was less than an hour ago, streak is 0.
+                if (diffTime < (1000 * 60 * 60)) {
+                    streakHours = 0;
+                }
+            }
+            // Use the new helper function to format the streak
+            smokeFreeStreakEl.textContent = formatHoursToReadable(streakHours);
+
+            // Update longest smoke-free streak
+            if (streakHours > appData.achievements.longestSmokeFreeStreakHours) {
+                appData.achievements.longestSmokeFreeStreakHours = streakHours;
+                saveData(); // Save immediately if a new record is set
+            }
+            longestSmokeFreeStreakEl.textContent = formatHoursToReadable(appData.achievements.longestSmokeFreeStreakHours);
+
+            // --- Update "Порівняння зі старою звичкою" section ---
+            // The user wants "Мав би витратити" to be for the current day, starting from 00:00
+            const expectedMoneyToday = expectedSmokesToday * pricePerCig;
+            expectedTotalMoneyEl.textContent = `${expectedMoneyToday.toFixed(2)} грн`;
+        }
+
+        function populateMissingDailyMoneySaved() {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+
+            let lastRecordedDate = null;
+            if (appData.dailyMoneySaved.length > 0) {
+                lastRecordedDate = new Date(appData.dailyMoneySaved[appData.dailyMoneySaved.length - 1].date);
+                lastRecordedDate.setHours(0, 0, 0, 0);
+            } else {
+                lastRecordedDate = new Date(appData.appStartDate);
+                lastRecordedDate.setHours(0, 0, 0, 0);
+            }
+
+            let currentDate = new Date(lastRecordedDate);
+            let needsSave = false;
+
+            while (currentDate.getTime() < now.getTime()) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                const dateStr = currentDate.toISOString().split('T')[0];
+                const existingEntry = appData.dailyMoneySaved.find(entry => entry.date === dateStr);
+
+                if (!existingEntry && currentDate.getTime() <= now.getTime()) {
+                    appData.dailyMoneySaved.push({
+                        date: dateStr,
+                        saved: 0
+                    });
+                    needsSave = true;
+                }
+            }
+
+            const todayStr = now.toISOString().split('T')[0];
+            const todayEntry = appData.dailyMoneySaved.find(entry => entry.date === todayStr);
+            if (!todayEntry) {
+                appData.dailyMoneySaved.push({
+                    date: todayStr,
+                    saved: 0
+                });
+                needsSave = true;
+            }
+
+            if (needsSave) {
+                appData.dailyMoneySaved.sort((a, b) => new Date(a.date) - new Date(b.date));
+                saveData();
+            }
+        }
+
+        function updateCurrentDailyMoneySaved(now) {
+            const todayStr = new Date(now).toISOString().split('T')[0];
+            let todayEntry = appData.dailyMoneySaved.find(entry => entry.date === todayStr);
+            
+            if (todayEntry) {
+                todayEntry.saved = parseFloat(moneySavedEl.textContent);
+            }
+        }
+
+        function updateAchievements(now) {
+            const timeSinceLastSmoke = appData.lastSmokeTime ? now - appData.lastSmokeTime : Infinity;
+            const currentStreakHours = appData.lastSmokeTime === null 
+                ? Math.floor((now - appData.appStartDate) / (1000 * 60 * 60)) 
+                : Math.floor(Math.abs(now - appData.lastSmokeTime) / (1000 * 60 * 60));
+            
+            const totalMoneySaved = parseFloat(totalMoneySavedEl.textContent);
+
+            let updatedAchievements = false;
+            let anyCompletedAchievements = false;
+            let anyUncompletedAchievements = false;
+
+            const achievementsData = {
+                halfDaySmokeFree: {
+                    condition: currentStreakHours >= 12, // 12 hours
+                    completedEl: liCompletedAchievementHalfDayEl,
+                    uncompletedEl: liUncompletedAchievementHalfDayEl
+                },
+                hourSmokeFree: {
+                    condition: currentStreakHours >= 1, // 1 hour
+                    completedEl: liCompletedAchievementHourEl,
+                    uncompletedEl: liUncompletedAchievementHourEl
+                },
+                daySmokeFree: {
+                    condition: currentStreakHours >= 24, // 1 day = 24 hours
+                    completedEl: liCompletedAchievementDayEl,
+                    uncompletedEl: liUncompletedAchievementDayEl
+                },
+                day2SmokeFree: {
+                    condition: currentStreakHours >= 48, // 2 days = 48 hours
+                    completedEl: liCompletedAchievementDay2El,
+                    uncompletedEl: liUncompletedAchievementDay2El
+                },
+                weekSmokeFree: {
+                    condition: currentStreakHours >= (7 * 24), // 1 week = 7 days * 24 hours
+                    completedEl: liCompletedAchievementWeekEl,
+                    uncompletedEl: liUncompletedAchievementWeekEl
+                },
+                week2SmokeFree: {
+                    condition: currentStreakHours >= (14 * 24), // 2 weeks = 14 days * 24 hours
+                    completedEl: liCompletedAchievementWeek2El,
+                    uncompletedEl: liUncompletedAchievementWeek2El
+                },
+                monthSmokeFree: {
+                    condition: currentStreakHours >= (30 * 24), // Approx 1 month = 30 days * 24 hours
+                    completedEl: liCompletedAchievementMonthEl,
+                    uncompletedEl: liUncompletedAchievementMonthEl
+                },
+                month2SmokeFree: {
+                    condition: currentStreakHours >= (60 * 24), // Approx 2 months = 60 days * 24 hours
+                    completedEl: liCompletedAchievementMonth2El,
+                    uncompletedEl: liUncompletedAchievementMonth2El
+                },
+                healthyLungs: {
+                    condition: currentStreakHours >= (90 * 24), // 3 months = 90 days * 24 hours
+                    completedEl: liCompletedAchievementHealthyLungsEl,
+                    uncompletedEl: liUncompletedAchievementHealthyLungsEl
+                },
+                month6SmokeFree: {
+                    condition: currentStreakHours >= (180 * 24), // 6 months = 180 days * 24 hours
+                    completedEl: liCompletedAchievementMonth6El,
+                    uncompletedEl: liUncompletedAchievementMonth6El
+                },
+                yearSmokeFree: {
+                    condition: currentStreakHours >= (365 * 24), // 1 year = 365 days * 24 hours
+                    completedEl: liCompletedAchievementYearEl,
+                    uncompletedEl: liUncompletedAchievementYearEl
+                },
+                saved100UAH: {
+                    condition: totalMoneySaved >= 100,
+                    completedEl: liCompletedAchievementSaved100El,
+                    uncompletedEl: liUncompletedAchievementSaved100El
+                },
+                saved500UAH: {
+                    condition: totalMoneySaved >= 500,
+                    completedEl: liCompletedAchievementSaved500El,
+                    uncompletedEl: liUncompletedAchievementSaved500El
+                },
+                saved1000UAH: {
+                    condition: totalMoneySaved >= 1000,
+                    completedEl: liCompletedAchievementSaved1000El,
+                    uncompletedEl: liUncompletedAchievementSaved1000El
+                },
+                saved5000UAH: {
+                    condition: totalMoneySaved >= 5000,
+                    completedEl: liCompletedAchievementSaved5000El,
+                    uncompletedEl: liUncompletedAchievementSaved5000El
+                },
+                saved10000UAH: {
+                    condition: totalMoneySaved >= 10000,
+                    completedEl: liCompletedAchievementSaved10000El,
+                    uncompletedEl: liUncompletedAchievementSaved10000El
+                }
+            };
+
+            for (const key in achievementsData) {
+                const { condition, completedEl, uncompletedEl } = achievementsData[key];
+                
+                if (condition && !appData.achievements[key]) {
+                    appData.achievements[key] = true;
+                    updatedAchievements = true;
+                }
+
+                if (appData.achievements[key]) {
+                    completedEl.classList.remove('hidden');
+                    uncompletedEl.classList.add('hidden');
+                    anyCompletedAchievements = true;
+                } else {
+                    completedEl.classList.add('hidden');
+                    uncompletedEl.classList.remove('hidden');
+                    anyUncompletedAchievements = true;
+                }
+            }
+
+            if (anyCompletedAchievements || anyUncompletedAchievements) {
+                achievementsSection.classList.remove('hidden');
+            } else {
+                achievementsSection.classList.add('hidden');
+            }
+
+            if (anyCompletedAchievements) {
+                completedAchievementsList.classList.remove('hidden');
+            } else {
+                completedAchievementsList.classList.add('hidden');
+            }
+
+            if (anyUncompletedAchievements) {
+                uncompletedAchievementsSubSection.classList.remove('hidden');
+            } else {
+                uncompletedAchievementsSubSection.classList.add('hidden');
+            }
+
+
+            if (updatedAchievements) {
+                saveData();
+            }
+        }
+
+
+        function handleSmoke() {
+            console.log("[handleSmoke] Button clicked!");
+            appData.lastSmokeTime = new Date().getTime();
+            appData.smokeHistory.push(appData.lastSmokeTime);
+            // When smoking, reset relevant achievements if they rely on continuous streak
+            appData.achievements.halfDaySmokeFree = false;
+            appData.achievements.hourSmokeFree = false;
+            appData.achievements.daySmokeFree = false;
+            appData.achievements.day2SmokeFree = false;
+            appData.achievements.weekSmokeFree = false;
+            appData.achievements.week2SmokeFree = false;
+            appData.achievements.monthSmokeFree = false;
+            appData.achievements.month2SmokeFree = false;
+            appData.achievements.healthyLungs = false;
+            appData.achievements.month6SmokeFree = false;
+            appData.achievements.yearSmokeFree = false;
+            // No need to reset money achievements here as they are cumulative
+            saveData();
+            updateUI();
+        }
+        
+        function updateSettingsInputs() {
+            packPriceInput.value = appData.settings.packPrice;
+            packSizeInput.value = appData.settings.packSize;
+            oldHabitInput.value = appData.settings.oldHabit;
+            smokeIntervalMinutesInput.value = appData.settings.smokeIntervalMinutes;
+        }
+
+
+        function handleSaveSettings() {
+            console.log("[handleSaveSettings] Save button clicked!");
+            appData.settings.packPrice = Number(packPriceInput.value) || 0;
+            appData.settings.packSize = Number(packSizeInput.value) || 1;
+            appData.settings.oldHabit = Number(oldHabitInput.value) || 0;
+            let newInterval = Number(smokeIntervalMinutesInput.value);
+            if (newInterval > 0) {
+                appData.settings.smokeIntervalMinutes = newInterval;
+            } else {
+                appData.settings.smokeIntervalMinutes = 60;
+                smokeIntervalMinutesInput.value = 60;
+            }
+            saveData();
+            updateUI();
+            toggleSettingsView();
+        }
+        
+        async function handleResetData() {
+            console.log("[handleResetData] Reset button clicked!");
+            showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
+                if (dataRef) {
+                    await deleteDoc(dataRef);
+                    console.log("[handleResetData] Data document deleted from Firestore.");
+                }
+                appData = {
+                    lastSmokeTime: null,
+                    smokeHistory: [],
+                    settings: { packPrice: 100, packSize: 20, oldHabit: 20, smokeIntervalMinutes: 60 },
+                    appStartDate: Date.now(),
+                    achievements: {
+                        halfDaySmokeFree: false,
+                        hourSmokeFree: false,
+                        daySmokeFree: false,
+                        day2SmokeFree: false,
+                        weekSmokeFree: false,
+                        week2SmokeFree: false,
+                        monthSmokeFree: false,
+                        month2SmokeFree: false,
+                        healthyLungs: false,
+                        month6SmokeFree: false,
+                        yearSmokeFree: false,
+                        // Reset new money saved achievements
+                        saved100UAH: false,
+                        saved500UAH: false,
+                        saved1000UAH: false,
+                        saved5000UAH: false,
+                        saved10000UAH: false,
+                        longestSmokeFreeStreakHours: 0 // Reset longest streak
+                    },
+                    dailyMoneySaved: []
+                };
+                await saveData();
+                updateSettingsInputs();
+                updateUI();
+                console.log("Data reset successfully.");
+            });
+        }
+        
+        function toggleSettingsView() {
+            console.log("[toggleSettingsView] Toggling settings view.");
+            mainView.classList.toggle('hidden');
+            settingsView.classList.toggle('hidden');
+        }
+
+        function renderMoneySavedChart() {
+            console.log("[renderMoneySavedChart] Attempting to render money saved chart.");
+            const recentStats = appData.dailyMoneySaved.slice(Math.max(appData.dailyMoneySaved.length - 30, 0));
+
+            const dates = recentStats.map(entry => entry.date);
+            const savedData = recentStats.map(entry => parseFloat(entry.saved));
+
+            const moneySavedCtx = moneySavedChartCanvas.getContext('2d');
+
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: '#cbd5e1' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: '#cbd5e1' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#cbd5e1' }
+                    }
+                }
+            };
+
+            if (moneySavedChartInstance) {
+                moneySavedChartInstance.data.labels = dates;
+                moneySavedChartInstance.data.datasets[0].data = savedData;
+                moneySavedChartInstance.update();
+                console.log("[renderMoneySavedChart] Updated existing chart instance.");
+            } else {
+                moneySavedChartInstance = new Chart(moneySavedCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: 'Зекономлено грошей (грн)',
+                            data: savedData,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1,
+                            fill: false
+                        }]
+                    },
+                    options: chartOptions
+                });
+                console.log("[renderMoneySavedChart] Created new chart instance.");
+            }
+        }
+
+        // New function to render the daily smoking chart
+        function renderDailySmokeChart() {
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+            // Filter smokes for today
+            const todaySmokes = appData.smokeHistory.filter(ts => ts >= todayStart);
+
+            // Prepare data for the chart
+            const labels = todaySmokes.map(ts => {
+                const date = new Date(ts);
+                return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+            });
+            const dataPoints = todaySmokes.map(() => 1); // Each smoke is a point with value 1
+
+            const dailySmokeCtx = dailySmokeChartCanvas.getContext('2d');
+
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: '#cbd5e1' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 1.2, // Small max value to make bars visible
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: {
+                            color: '#cbd5e1',
+                            stepSize: 1,
+                            callback: function(value) {
+                                return value === 1 ? 'Сигарета' : ''; // Label only 'Сигарета' at y=1
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false // No legend needed for this chart
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Час: ${context.label}`; // Show time in tooltip
+                            }
+                        }
+                    }
+                }
+            };
+
+            if (dailySmokeChartInstance) {
+                dailySmokeChartInstance.data.labels = labels;
+                dailySmokeChartInstance.data.datasets[0].data = dataPoints;
+                dailySmokeChartInstance.update();
+                console.log("[renderDailySmokeChart] Updated existing daily smoke chart instance.");
+            } else {
+                dailySmokeChartInstance = new Chart(dailySmokeCtx, {
+                    type: 'bar', // Bar chart to show individual events
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Викурено',
+                            data: dataPoints,
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)', // Reddish color for smokes
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: chartOptions
+                });
+                console.log("[renderDailySmokeChart] Created new daily smoke chart instance.");
+            }
+        }
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log("[DOMContentLoaded] DOM fully loaded. Starting Firebase authentication process.");
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    console.log(`[onAuthStateChanged] User detected: ${user.uid}. Loading data.`);
+                    userId = user.uid;
+                    await loadData();
+                } else {
+                    console.log("[onAuthStateChanged] No user detected. Attempting anonymous sign-in.");
+                    try {
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    } catch (anonError) {
+                        console.error("Anonymous authentication failed:", anonError);
+                        loader.textContent = "Помилка автентифікації. Спробуйте оновити сторінку.";
+                    }
+                }
+            });
+        });
+
+
+    </script>
+</body>
+</html>
