@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кидай Курити</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation; /* Запобігає затримкам кліків на мобільних */
+        }
+        .timer-text {
+            font-size: 6rem; /* 96px */
+            line-height: 1;
+        }
+        .status-text {
+            font-size: 1.5rem; /* 24px */
+            line-height: 2rem; /* 32px */
+        }
+        /* Кастомний стиль для disabled кнопки */
+        button:disabled {
+            background-color: #4b5563; /* gray-600 */
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        /* Проста анімація для появи елементів */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white flex items-center justify-center min-h-screen p-4">
+
+
+    <div id="loader" class="text-center">
+        <p class="text-2xl">Завантаження даних...</p>
+    </div>
+
+
+    <div id="app" class="hidden w-full max-w-md mx-auto text-center fade-in">
+        <!-- Головний екран -->
+        <div id="main-view">
+            <h1 class="text-4xl font-bold mb-4 text-emerald-400">Кидай Курити</h1>
+            
+            <div class="my-8">
+                <div id="timer" class="timer-text font-black text-red-500">00:00</div>
+                <p id="statusMessage" class="status-text font-bold text-slate-300">Час до наступної</p>
+            </div>
+
+
+            <button id="smokeButton" class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold py-4 px-6 rounded-xl text-2xl transition-all duration-200 shadow-lg shadow-emerald-500/20">
+                Я щойно покурив
+            </button>
+
+
+            <!-- Статистика -->
+            <div class="mt-12 p-6 bg-slate-800 rounded-xl space-y-4">
+                <h2 class="text-2xl font-bold text-slate-200">Статистика</h2>
+                <div class="flex justify-around text-center">
+                    <div>
+                        <p class="text-3xl font-bold text-amber-400" id="smokedToday">0</p>
+                        <p class="text-slate-400">Сьогодні</p>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-bold text-green-400" id="moneySaved">0.00 грн</p>
+                        <p class="text-slate-400">Збережено</p>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="openSettingsButton" class="mt-6 text-slate-400 hover:text-white transition">Налаштування</button>
+            <button id="motivationButton" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl text-xl transition-all duration-200 shadow-lg shadow-blue-500/20">
+                Отримати мотивацію ✨
+            </button>
+        </div>
+
+
+        <!-- Екран налаштувань -->
+        <div id="settings-view" class="hidden p-6 bg-slate-800 rounded-xl">
+            <h2 class="text-2xl font-bold mb-4">Налаштування</h2>
+            <div class="space-y-4 text-left">
+                <div>
+                    <label for="packPrice" class="block mb-1 text-slate-300">Ціна пачки (грн):</label>
+                    <input type="number" id="packPrice" class="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label for="packSize" class="block mb-1 text-slate-300">Кількість в пачці:</label>
+                    <input type="number" id="packSize" class="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label for="oldHabit" class="block mb-1 text-slate-300">Скільки курив в день (раніше):</label>
+                    <input type="number" id="oldHabit" class="w-full p-2 rounded bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+            </div>
+            <div class="mt-6 flex gap-4">
+                <button id="saveSettingsButton" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg transition">Зберегти</button>
+                <button id="closeSettingsButton" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg transition">Закрити</button>
+            </div>
+             <button id="resetDataButton" class="mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition">Скинути всі дані</button>
+        </div>
+    </div>
+    
+    <!-- Модальне вікно для підтвердження -->
+    <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-lg p-6 max-w-sm w-full text-center">
+            <p id="modalText" class="text-lg mb-6">Ви впевнені?</p>
+            <div class="flex gap-4">
+                <button id="confirmYes" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Так</button>
+                <button id="confirmNo" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg">Ні</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальне вікно для мотивації -->
+    <div id="motivationModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-lg p-6 max-w-sm w-full text-center relative">
+            <button id="closeMotivationModal" class="absolute top-2 right-2 text-slate-400 hover:text-white text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-4 text-emerald-400">Ваша мотивація ✨</h2>
+            <p id="motivationText" class="text-lg mb-4 text-slate-300">Завантаження...</p>
+            <div id="motivationLoader" class="hidden flex justify-center items-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // Імпорт необхідних функцій з Firebase SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+
+        // --- КОНФІГУРАЦІЯ FIREBASE ---
+        // Ваша конфігурація Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyASpsqHjAKc-dHe2pps1MYF0WYJEJkkUbE",
+            authDomain: "quit-smoking-max.firebaseapp.com",
+            projectId: "quit-smoking-max",
+            storageBucket: "quit-smoking-max.firebasestorage.app",
+            messagingSenderId: "53877466841",
+            appId: "1:53877466841:web:cde808b8a76596b19740c8"
+        };
+
+        // Використовуємо appId з наданої конфігурації, якщо він є, інакше дефолтний
+        const appId = firebaseConfig.appId || 'quit-smoking-app-default';
+        // initialAuthToken надається середовищем Canvas
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+
+        // Ініціалізація Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+
+        // --- DOM ЕЛЕМЕНТИ ---
+        const loader = document.getElementById('loader');
+        const appContainer = document.getElementById('app');
+        const mainView = document.getElementById('main-view');
+        const settingsView = document.getElementById('settings-view');
+        const timerEl = document.getElementById('timer');
+        const statusMessageEl = document.getElementById('statusMessage');
+        const smokeButton = document.getElementById('smokeButton');
+        const smokedTodayEl = document.getElementById('smokedToday');
+        const moneySavedEl = document.getElementById('moneySaved');
+        
+        // Кнопки налаштувань
+        const openSettingsButton = document.getElementById('openSettingsButton');
+        const closeSettingsButton = document.getElementById('closeSettingsButton');
+        const saveSettingsButton = document.getElementById('saveSettingsButton');
+        const resetDataButton = document.getElementById('resetDataButton');
+        const motivationButton = document.getElementById('motivationButton'); // Нова кнопка мотивації
+        
+        // Поля вводу
+        const packPriceInput = document.getElementById('packPrice');
+        const packSizeInput = document.getElementById('packSize');
+        const oldHabitInput = document.getElementById('oldHabit');
+
+
+        // Модальне вікно підтвердження
+        const confirmModal = document.getElementById('confirmModal');
+        const modalText = document.getElementById('modalText');
+        const confirmYes = document.getElementById('confirmYes');
+        const confirmNo = document.getElementById('confirmNo');
+
+        // Модальне вікно мотивації
+        const motivationModal = document.getElementById('motivationModal');
+        const motivationTextEl = document.getElementById('motivationText');
+        const motivationLoader = document.getElementById('motivationLoader');
+        const closeMotivationModalButton = document.getElementById('closeMotivationModal');
+
+
+        // --- СТАН ДОДАТКУ ---
+        let userId = null;
+        let dataRef = null;
+        let appData = {
+            lastSmokeTime: null,
+            smokeHistory: [],
+            settings: {
+                packPrice: 100,
+                packSize: 20,
+                oldHabit: 20 // Середня кількість цигарок в день до початку використання додатку
+            }
+        };
+        const SMOKE_INTERVAL = 60 * 60 * 1000; // 1 година в мілісекундах
+
+
+        // --- ФУНКЦІЇ ---
+
+
+        // Функція для показу модального вікна підтвердження
+        function showConfirm(text, onConfirm) {
+            modalText.textContent = text;
+            confirmModal.classList.remove('hidden');
+            
+            // Видаляємо старі обробники, щоб уникнути дублювання
+            const newConfirmYes = confirmYes.cloneNode(true);
+            confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
+            
+            const newConfirmNo = confirmNo.cloneNode(true);
+            confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
+
+
+            document.getElementById('confirmYes').onclick = () => {
+                onConfirm();
+                confirmModal.classList.add('hidden');
+            };
+            document.getElementById('confirmNo').onclick = () => {
+                confirmModal.classList.add('hidden');
+            };
+        }
+
+
+        // Завантаження даних з Firestore
+        async function loadData() {
+            if (!userId) return;
+            // ВИПРАВЛЕНО: Шлях повинен вказувати на документ, а не на колекцію.
+            // Додаємо '/data' в кінець шляху, щоб створити посилання на конкретний документ.
+            dataRef = doc(db, `artifacts/${appId}/users/${userId}/smokingData/data`);
+            try {
+                const docSnap = await getDoc(dataRef);
+                if (docSnap.exists()) {
+                    const loadedData = docSnap.data();
+                    // Перевіряємо, чи всі поля існують, інакше використовуємо дефолтні
+                    appData.lastSmokeTime = loadedData.lastSmokeTime || null;
+                    appData.smokeHistory = loadedData.smokeHistory || [];
+                    appData.settings = { ...appData.settings, ...loadedData.settings };
+                } else {
+                    console.log("No such document! Creating one.");
+                    await saveData(); // Створюємо документ з дефолтними даними
+                }
+            } catch (error) {
+                console.error("Error loading data: ", error);
+            }
+            updateSettingsInputs();
+            setInterval(updateUI, 1000); // Запускаємо оновлення інтерфейсу кожну секунду
+            loader.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+        }
+
+
+        // Збереження даних у Firestore
+        async function saveData() {
+            if (!dataRef) return;
+            try {
+                await setDoc(dataRef, appData);
+            } catch (error) {
+                console.error("Error saving data: ", error);
+            }
+        }
+
+
+        // Оновлення інтерфейсу
+        function updateUI() {
+            const now = new Date().getTime();
+            const timeSinceLastSmoke = appData.lastSmokeTime ? now - appData.lastSmokeTime : SMOKE_INTERVAL;
+            const timeRemaining = SMOKE_INTERVAL - timeSinceLastSmoke;
+
+
+            if (timeRemaining > 0) {
+                // Таймер активний
+                const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+                timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                timerEl.classList.remove('text-green-400');
+                timerEl.classList.add('text-red-500');
+                statusMessageEl.textContent = 'Час до наступної';
+                smokeButton.disabled = true;
+            } else {
+                // Можна курити
+                timerEl.textContent = "GO!";
+                timerEl.classList.remove('text-red-500');
+                timerEl.classList.add('text-green-400');
+                statusMessageEl.textContent = 'Можна курити';
+                smokeButton.disabled = false;
+            }
+
+
+            updateStatistics(now);
+        }
+        
+        // Оновлення статистики
+        function updateStatistics(now) {
+            const today = new Date(now);
+            today.setHours(0, 0, 0, 0);
+            const todayTimestamp = today.getTime();
+
+
+            const smokedTodayCount = appData.smokeHistory.filter(ts => ts >= todayTimestamp).length;
+            smokedTodayEl.textContent = smokedTodayCount;
+
+
+            // Розрахунок економії
+            const { packPrice, packSize, oldHabit } = appData.settings;
+            if (packSize > 0 && oldHabit > 0) {
+                const pricePerCig = packPrice / packSize;
+                const hoursPassedToday = (now - todayTimestamp) / (1000 * 60 * 60);
+                // Очікувана кількість викурених цигарок на цей момент дня, базуючись на старій звичці
+                const expectedSmokes = (oldHabit / 24) * hoursPassedToday;
+                const savedSmokes = Math.max(0, expectedSmokes - smokedTodayCount);
+                const savedMoney = savedSmokes * pricePerCig;
+                moneySavedEl.textContent = `${savedMoney.toFixed(2)} грн`;
+            } else {
+                moneySavedEl.textContent = `0.00 грн`;
+            }
+        }
+
+
+        // Обробник натискання кнопки "Я покурив"
+        function handleSmoke() {
+            appData.lastSmokeTime = new Date().getTime();
+            appData.smokeHistory.push(appData.lastSmokeTime);
+            saveData();
+            updateUI(); // Негайно оновити інтерфейс
+        }
+        
+        // Оновити поля вводу в налаштуваннях
+        function updateSettingsInputs() {
+            packPriceInput.value = appData.settings.packPrice;
+            packSizeInput.value = appData.settings.packSize;
+            oldHabitInput.value = appData.settings.oldHabit;
+        }
+
+
+        // Зберегти налаштування
+        function handleSaveSettings() {
+            appData.settings.packPrice = Number(packPriceInput.value) || 0;
+            appData.settings.packSize = Number(packSizeInput.value) || 1; // Запобігаємо діленню на нуль
+            appData.settings.oldHabit = Number(oldHabitInput.value) || 0;
+            saveData();
+            updateUI();
+            toggleSettingsView(); // Закрити налаштування після збереження
+        }
+        
+        // Скинути всі дані
+        async function handleResetData() {
+            showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
+                if (dataRef) {
+                    await deleteDoc(dataRef);
+                }
+                // Скидаємо стан до початкового
+                appData = {
+                    lastSmokeTime: null,
+                    smokeHistory: [],
+                    settings: { packPrice: 100, packSize: 20, oldHabit: 20 }
+                };
+                updateSettingsInputs();
+                updateUI();
+                console.log("Data reset successfully.");
+            });
+        }
+        
+        // Перемикач видимості налаштувань
+        function toggleSettingsView() {
+            mainView.classList.toggle('hidden');
+            settingsView.classList.toggle('hidden');
+        }
+
+        // --- ФУНКЦІЇ GEMINI API ---
+        async function generateMotivation() {
+            motivationModal.classList.remove('hidden');
+            motivationTextEl.textContent = ''; // Очистити попередній текст
+            motivationLoader.classList.remove('hidden'); // Показати завантажувач
+
+            const now = new Date().getTime();
+            const timeSinceLastSmoke = appData.lastSmokeTime ? now - appData.lastSmokeTime : 0;
+            const smokedTodayCount = appData.smokeHistory.filter(ts => ts >= new Date().setHours(0,0,0,0)).length;
+            const savedMoney = parseFloat(moneySavedEl.textContent); // Отримати зекономлені гроші з UI
+
+            let timeAgoMessage = "Прямо зараз";
+            if (appData.lastSmokeTime) {
+                const hours = Math.floor(timeSinceLastSmoke / (1000 * 60 * 60));
+                const minutes = Math.floor((timeSinceLastSmoke % (1000 * 60 * 60)) / (1000 * 60));
+                timeAgoMessage = `${hours} годин ${minutes} хвилин тому`;
+            }
+
+            const prompt = `Ви є мотиваційним тренером, який допомагає людям кинути палити. Напишіть коротке, надихаюче повідомлення для користувача, який кидає палити. Врахуйте наступні дані:
+Час останньої сигарети: ${timeAgoMessage}
+Цигарок викурено сьогодні: ${smokedTodayCount}
+Зекономлено грошей: ${savedMoney.toFixed(2)} грн
+Ціна пачки: ${appData.settings.packPrice} грн
+Кількість цигарок у пачці: ${appData.settings.packSize}
+Звичка до початку: ${appData.settings.oldHabit} цигарок на день.
+
+Зосередьтеся на прогресі користувача та заохочуйте його продовжувати. Зробіть повідомлення позитивним і підтримуючим. Максимум 100 слів.`;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // Якщо ви хочете використовувати моделі, окрім gemini-2.0-flash або imagen-3.0-generate-002, надайте API ключ тут. В іншому випадку залиште як є.
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    motivationTextEl.textContent = text;
+                } else {
+                    motivationTextEl.textContent = "Не вдалося згенерувати мотиваційне повідомлення. Спробуйте пізніше.";
+                    console.error("Unexpected API response structure:", result);
+                }
+            } catch (error) {
+                motivationTextEl.textContent = "Помилка при з'єднанні з сервером. Перевірте ваше підключення.";
+                console.error("Error generating motivation:", error);
+            } finally {
+                motivationLoader.classList.add('hidden'); // Сховати завантажувач
+            }
+        }
+
+
+        // --- ОБРОБНИКИ ПОДІЙ ---
+        smokeButton.addEventListener('click', handleSmoke);
+        openSettingsButton.addEventListener('click', toggleSettingsView);
+        closeSettingsButton.addEventListener('click', toggleSettingsView);
+        saveSettingsButton.addEventListener('click', handleSaveSettings);
+        resetDataButton.addEventListener('click', handleResetData);
+        motivationButton.addEventListener('click', generateMotivation); // Обробник для нової кнопки
+        closeMotivationModalButton.addEventListener('click', () => motivationModal.classList.add('hidden')); // Закрити модальне вікно
+
+
+        // --- АВТОРИЗАЦІЯ ТА ЗАПУСК ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Користувач вже увійшов або успішно увійшов анонімно
+                userId = user.uid;
+                await loadData();
+            } else {
+                // Користувач не увійшов, спробуємо увійти
+                try {
+                    // Якщо initialAuthToken існує, спробуємо увійти з ним.
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } else {
+                        // Якщо initialAuthToken відсутній, просто входимо анонімно.
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously (no custom token).");
+                    }
+                } catch (error) {
+                    if (error.code === 'auth/custom-token-mismatch') {
+                        console.warn("Custom authentication token mismatch. Attempting anonymous sign-in as fallback.");
+                    } else {
+                        console.error("Authentication failed:", error);
+                    }
+                    // Якщо вхід з custom token не вдався, або сталася інша початкова помилка,
+                    // спробуємо анонімний вхід як запасний варіант.
+                    try {
+                        await signInAnonymously(auth);
+                        console.log("Successfully signed in anonymously as fallback.");
+                    } catch (anonError) {
+                        console.error("Anonymous authentication failed:", anonError);
+                        loader.textContent = "Помилка автентифікації. Спробуйте оновити сторінку.";
+                    }
+                }
+            }
+        });
+
+
+    </script>
+</body>
+</html>
