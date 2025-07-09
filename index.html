@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -74,21 +75,23 @@
             </div>
 
             <!-- Flex container for main smoke button and new emergency smoke button -->
-            <div class="flex items-stretch justify-center gap-4 mb-6">
-                <button id="smokeButton" class="w-3/4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold py-4 px-6 rounded-xl text-2xl transition-all duration-200 shadow-lg shadow-emerald-500/20">
+            <!-- Зменшено mb-6 до mb-3 -->
+            <div class="flex items-stretch justify-center gap-4 mb-3">
+                <button id="smokeButton" class="w-4/5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold py-4 px-6 rounded-xl text-2xl transition-all duration-200 shadow-lg shadow-emerald-500/20">
                     Я щойно покурив
                 </button>
-                <button id="emergencySmokeButton" class="w-1/4 bg-red-500 hover:bg-red-600 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold py-4 px-1 rounded-xl text-sm transition-all duration-200 shadow-lg shadow-red-500/20">
-                    Стік поза забороною
+                <button id="emergencySmokeButton" class="w-1/5 bg-red-500 hover:bg-red-600 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold py-4 px-1 rounded-xl text-sm transition-all duration-200 shadow-lg shadow-red-500/20">
+                    Стік<br>поза забороною
                 </button>
             </div>
 
             <!-- Moved "Налаштування" button here -->
-            <!-- Reduced mt-6 to mt-3 -->
-            <button id="openSettingsButton" class="mt-3 text-slate-400 hover:text-white transition">Налаштування</button>
+            <!-- Зменшено mt-3 до mt-1 -->
+            <button id="openSettingsButton" class="mt-1 text-slate-400 hover:text-white transition">Налаштування</button>
 
             <!-- Reduced mt-12 to mt-6 -->
-            <div class="mt-6 p-6 bg-slate-800 rounded-xl space-y-4">
+            <!-- Зменшено mt-6 до mt-3 -->
+            <div class="mt-3 p-6 bg-slate-800 rounded-xl space-y-4">
                 <h2 class="text-2xl font-bold text-slate-200">Викурено сьогодні</h2>
                 <div class="flex justify-around text-center">
                     <div>
@@ -206,102 +209,55 @@
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'quit-smoking-app-default';
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+        let app;
+        let db;
+        let auth;
 
 
         // --- DOM ELEMENTS ---
-        const loader = document.getElementById('loader');
-        const appContainer = document.getElementById('app');
-        const mainView = document.getElementById('main-view'); // Corrected assignment
-        const settingsView = document.getElementById('settings-view');
-        const timerEl = document.getElementById('timer');
-        const statusMessageEl = document.getElementById('statusMessage');
-        const smokeButton = document.getElementById('smokeButton');
-        const emergencySmokeButton = document.getElementById('emergencySmokeButton'); // New DOM element
+        // Ці змінні оголошені тут, але їх значення будуть присвоєні в DOMContentLoaded
+        // після того, як DOM буде повністю завантажений.
+        let loader; 
+        let appContainer;
+        let mainView;
+        let settingsView;
+        let timerEl;
+        let statusMessageEl;
+        let smokeButton;
+        let emergencySmokeButton;
         
-        const smokedTodayValueEl = document.getElementById('smokedTodayValue');
-        const smokedTodayPlannedEl = document.getElementById('smokedTodayPlanned');
+        let smokedTodayValueEl;
+        let smokedTodayPlannedEl;
 
-        const spentTodayValueEl = document.getElementById('spentTodayValue');
-        const spentTodayPlannedEl = document.getElementById('spentTodayPlanned');
+        let spentTodayValueEl;
+        let spentTodayPlannedEl;
         
-        const totalMoneySavedEl = document.getElementById('totalMoneySaved');
-        const smokeFreeStreakEl = document.getElementById('smokeFreeStreak'); 
-        const longestSmokeFreeStreakEl = document.getElementById('longestSmokeFreeStreak'); // New DOM element
-        const expectedTotalMoneyEl = document.getElementById('expectedTotalMoney');
-
-        // Removed Achievements Section DOM elements
-        // const achievementsSection = document.getElementById('achievementsSection');
-        // const completedAchievementsList = document.getElementById('completedAchievementsList');
-        // const uncompletedAchievementsSubSection = document.getElementById('uncompletedAchievementsSubSection');
-        // const liCompletedAchievementHalfDayEl = document.getElementById('liCompletedAchievementHalfDay');
-        // const liCompletedAchievementHourEl = document.getElementById('liCompletedAchievementHour');
-        // const liCompletedAchievementDayEl = document.getElementById('liCompletedAchievementDay');
-        // const liCompletedAchievementDay2El = document = document.getElementById('liCompletedAchievementDay2');
-        // const liCompletedAchievementWeekEl = document.getElementById('liCompletedAchievementWeek');
-        // const liCompletedAchievementWeek2El = document.getElementById('liCompletedAchievementWeek2');
-        // const liCompletedAchievementMonthEl = document.getElementById('liCompletedAchievementMonth');
-        // const liCompletedAchievementMonth2El = document.getElementById('liCompletedAchievementMonth2');
-        // const liCompletedAchievementHealthyLungsEl = document.getElementById('liCompletedAchievementHealthyLungs');
-        // const liCompletedAchievementMonth6El = document.getElementById('liCompletedAchievementMonth6');
-        // const liCompletedAchievementYearEl = document.getElementById('liCompletedAchievementYear');
-        // const liCompletedAchievementSaved100El = document.getElementById('liCompletedAchievementSaved100');
-        // const liCompletedAchievementSaved500El = document.getElementById('liCompletedAchievementSaved500');
-        // const liCompletedAchievementSaved1000El = document.getElementById('liCompletedAchievementSaved1000');
-        // const liCompletedAchievementSaved5000El = document.getElementById('liCompletedAchievementSaved5000'); 
-        // const liCompletedAchievementSaved10000El = document.getElementById('liCompletedAchievementSaved10000');
-        // const liUncompletedAchievementHalfDayEl = document.getElementById('liUncompletedAchievementHalfDay');
-        // const liUncompletedAchievementHourEl = document.getElementById('liUncompletedAchievementHour');
-        // const liUncompletedAchievementDayEl = document.getElementById('liUncompletedAchievementDay');
-        // const liUncompletedAchievementDay2El = document.getElementById('liUncompletedAchievementDay2');
-        // const liUncompletedAchievementWeekEl = document.getElementById('liUncompletedAchievementWeek');
-        // const liUncompletedAchievementWeek2El = document.getElementById('liUncompletedAchievementWeek2');
-        // const liUncompletedAchievementMonthEl = document.getElementById('liCompletedAchievementMonth');
-        // const liUncompletedAchievementMonth2El = document.getElementById('liCompletedAchievementMonth2');
-        // const liUncompletedAchievementHealthyLungsEl = document.getElementById('liCompletedAchievementHealthyLungs');
-        // const liUncompletedAchievementMonth6El = document.getElementById('liCompletedAchievementMonth6');
-        // const liUncompletedAchievementYearEl = document.getElementById('liCompletedAchievementYear');
-        // const liUncompletedAchievementSaved100El = document.getElementById('liUncompletedAchievementSaved100');
-        // const liUncompletedAchievementSaved500El = document.getElementById('liUncompletedAchievementSaved500');
-        // const liUncompletedAchievementSaved1000El = document.getElementById('liUncompletedAchievementSaved1000');
-        // const liUncompletedAchievementSaved5000El = document.getElementById('liUncompletedAchievementSaved5000');
-        // const liUncompletedAchievementSaved10000El = document.getElementById('liUncompletedAchievementSaved10000');
+        let totalMoneySavedEl;
+        let smokeFreeStreakEl; 
+        let longestSmokeFreeStreakEl;
+        let expectedTotalMoneyEl;
         
-        const openSettingsButton = document.getElementById('openSettingsButton');
-        const closeSettingsButton = document.getElementById('closeSettingsButton');
-        const saveSettingsButton = document.getElementById('saveSettingsButton');
-        const resetDataButton = document.getElementById('resetDataButton');
+        let openSettingsButton;
+        let closeSettingsButton;
+        let saveSettingsButton;
+        let resetDataButton;
         
-        const packPriceInput = document.getElementById('packPrice');
-        const packSizeInput = document.getElementById('packSize'); 
-        const oldHabitInput = document.getElementById('oldHabit');
-        const smokeIntervalMinutesInput = document.getElementById('smokeIntervalMinutes');
-        const oldHabitMoneyEl = document.getElementById('oldHabitMoney'); // New DOM element for old habit money
-        const desiredDailySticksInput = document.getElementById('desiredDailySticks'); // New DOM element
-        const desiredDailySticksMoneyEl = document.getElementById('desiredDailySticksMoney'); // New DOM element
+        let packPriceInput;
+        let packSizeInput; 
+        let oldHabitInput;
+        let smokeIntervalMinutesInput;
+        let oldHabitMoneyEl;
+        let desiredDailySticksInput;
+        let desiredDailySticksMoneyEl;
 
-        // Removed moneySavedChartSection and moneySavedChartCanvas
-        // const moneySavedChartSection = document.getElementById('moneySavedChartSection');
-        // const moneySavedChartCanvas = document.getElementById('moneySavedChart');
-
-        // New DOM elements for daily smoking chart
-        const dailySmokingChartSection = document.getElementById('dailySmokingChartSection');
-        const dailySmokeChartCanvas = document.getElementById('dailySmokeChart');
+        let dailySmokingChartSection;
+        let dailySmokeChartCanvas;
 
 
-        const confirmModal = document.getElementById('confirmModal');
-        const modalText = document.getElementById('modalText');
-        const confirmYes = document.getElementById('confirmYes');
-        const confirmNo = document.getElementById('confirmNo');
-
-        // Removed Info Modal DOM Elements and related logic
-        // const infoModal = document.getElementById('infoModal');
-        // const closeInfoModal = document.getElementById('closeInfoModal');
-        // const infoModalTitle = document.getElementById('infoModalTitle');
-        // const infoModalContent = document.getElementById('infoModalContent');
-        // const infoIcons = document.querySelectorAll('.info-icon'); // Select all info icons
+        let confirmModal;
+        let modalText;
+        let confirmYes;
+        let confirmNo;
 
 
         // --- APPLICATION STATE ---
@@ -317,13 +273,12 @@
                 smokeIntervalMinutes: 60, // Default: 60 minutes (1 hour)
                 desiredDailySticks: 10 // New setting: desired number of sticks per day
             },
-            appStartDate: null, // Timestamp when app data was first initialized/saved
-            dailyMoneySaved: []
+            // Removed dailyMoneySaved as the chart using it was removed
+            // Removed achievements object as it's no longer displayed, except for longestSmokeFreeStreakHours
+            longestSmokeFreeStreakHours: 0 
         };
-        const HALFDAY_SMOKE_FREE_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 
-        let moneySavedChartInstance = null; // Removed initialization as chart is removed
-        let dailySmokeChartInstance = null; // New chart instance
+        let dailySmokeChartInstance = null;
         let eventListenersAttached = false;
 
 
@@ -349,11 +304,6 @@
                 confirmModal.classList.add('hidden');
             };
         }
-
-        // Removed Info content for the modal
-        // const infoContent = { ... };
-        // function showInfoModal(key) { ... }
-        // function closeInfoModalHandler() { ... }
 
 
         async function loadData() {
@@ -388,17 +338,18 @@
                         appData.settings.desiredDailySticks = 10; // Default value for new setting
                     }
                     appData.appStartDate = loadedData.appStartDate || Date.now();
-                    appData.dailyMoneySaved = loadedData.dailyMoneySaved || [];
+                    // Load longestSmokeFreeStreakHours directly
+                    appData.longestSmokeFreeStreakHours = loadedData.longestSmokeFreeStreakHours || 0;
+
                 } else {
                     console.log("No such document! Creating one.");
                     appData.appStartDate = Date.now();
-                    appData.dailyMoneySaved = [];
+                    appData.longestSmokeFreeStreakHours = 0; // Initialize for new user
                     await saveData();
                 }
             } catch (error) {
                 console.error("Error loading data: ", error);
             }
-            populateMissingDailyMoneySaved();
             updateSettingsInputs();
             setInterval(updateUI, 1000);
             loader.classList.add('hidden');
@@ -412,8 +363,6 @@
                 closeSettingsButton.addEventListener('click', toggleSettingsView);
                 saveSettingsButton.addEventListener('click', handleSaveSettings);
                 resetDataButton.addEventListener('click', handleResetData);
-                // Removed closeInfoModal.addEventListener('click', closeInfoModalHandler);
-                // Removed infoIcons.forEach(icon => { ... });
 
                 // Add input event listener for oldHabit to update money display in real-time
                 packPriceInput.addEventListener('input', () => {
@@ -594,7 +543,6 @@
 
 
             updateStatistics(now);
-            updateCurrentDailyMoneySaved(now);
 
             // Only render daily smoke chart if the section is open
             if (!dailySmokingChartSection.hasAttribute('open')) {
@@ -662,80 +610,23 @@
                 const diffTime = Math.abs(currentTime - lastSmokeTime);
                 streakMinutes = Math.floor(diffTime / (1000 * 60));
             }
-            // Use the new helper function to format the streak in minutes
-            smokeFreeStreakEl.textContent = formatMinutesToReadable(streakMinutes);
-
             // Update longest smoke-free streak (still in hours)
             let currentStreakHoursForLongest = Math.floor(streakMinutes / 60); // Convert current minutes to hours for comparison
-            longestSmokeFreeStreakEl.textContent = formatHoursToReadable(currentStreakHoursForLongest);
+            if (currentStreakHoursForLongest > appData.longestSmokeFreeStreakHours) {
+                appData.longestSmokeFreeStreakHours = currentStreakHoursForLongest;
+                saveData(); // Save updated longest streak
+            }
+            longestSmokeFreeStreakEl.textContent = formatHoursToReadable(appData.longestSmokeFreeStreakHours);
+
+
+            // Use the new helper function to format the streak in minutes
+            smokeFreeStreakEl.textContent = formatMinutesToReadable(streakMinutes);
 
 
             // --- Update "Порівняння зі старою звичкою" section ---
             // Now uses oldHabit for "Мав би витратити" for the full day
             const expectedMoneyTodayBasedOnOldHabit = oldHabit * pricePerCig; // Corrected to use oldHabit
             expectedTotalMoneyEl.textContent = `${expectedMoneyTodayBasedOnOldHabit.toFixed(2)} грн`;
-        }
-
-        function populateMissingDailyMoneySaved() {
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-
-            let lastRecordedDate = null;
-            if (appData.dailyMoneySaved.length > 0) {
-                lastRecordedDate = new Date(appData.dailyMoneySaved[appData.dailyMoneySaved.length - 1].date);
-                lastRecordedDate.setHours(0, 0, 0, 0);
-            } else {
-                lastRecordedDate = new Date(appData.appStartDate);
-                lastRecordedDate.setHours(0, 0, 0, 0);
-            }
-
-            let currentDate = new Date(lastRecordedDate);
-            let needsSave = false;
-
-            while (currentDate.getTime() < now.getTime()) {
-                currentDate.setDate(currentDate.getDate() + 1);
-                const dateStr = currentDate.toISOString().split('T')[0];
-                const existingEntry = appData.dailyMoneySaved.find(entry => entry.date === dateStr);
-
-                if (!existingEntry && currentDate.getTime() <= now.getTime()) {
-                    appData.dailyMoneySaved.push({
-                        date: dateStr,
-                        saved: 0
-                    });
-                    needsSave = true;
-                }
-            }
-
-            const todayStr = now.toISOString().split('T')[0];
-            const todayEntry = appData.dailyMoneySaved.find(entry => entry.date === todayStr);
-            if (!todayEntry) {
-                appData.dailyMoneySaved.push({
-                    date: todayStr,
-                    saved: 0
-                });
-                needsSave = true;
-            }
-
-            if (needsSave) {
-                appData.dailyMoneySaved.sort((a, b) => new Date(a.date) - new Date(b.date));
-                saveData();
-            }
-        }
-
-        function updateCurrentDailyMoneySaved(now) {
-            const todayStr = new Date(now).toISOString().split('T')[0];
-            let todayEntry = appData.dailyMoneySaved.find(entry => entry.date === todayStr);
-            
-            if (todayEntry) {
-                const { packPrice, packSize, desiredDailySticks } = appData.settings;
-                const pricePerCig = (packSize > 0) ? packPrice / packSize : 0;
-                
-                const smokedTodayCount = appData.smokeHistory.filter(smoke => smoke.timestamp >= new Date(now).setHours(0,0,0,0)).length; // Check timestamp property
-                const actualSpentToday = smokedTodayCount * pricePerCig;
-                const plannedSpentToday = desiredDailySticks * pricePerCig;
-                
-                todayEntry.saved = actualSpentToday; // Save actual spent for chart
-            }
         }
 
 
@@ -812,7 +703,7 @@
                     smokeHistory: [],
                     settings: { packPrice: 100, packSize: 20, oldHabit: 20, smokeIntervalMinutes: 60, desiredDailySticks: 10 }, // Reset new setting
                     appStartDate: Date.now(),
-                    dailyMoneySaved: []
+                    longestSmokeFreeStreakHours: 0 // Reset longest streak
                 };
                 await saveData();
                 updateSettingsInputs();
@@ -945,6 +836,62 @@
         document.addEventListener('DOMContentLoaded', async () => {
             console.log("[DOMContentLoaded] DOM fully loaded. Starting Firebase authentication process.");
 
+            // Присвоюємо значення DOM-елементам тут, після завантаження DOM
+            loader = document.getElementById('loader'); 
+            appContainer = document.getElementById('app');
+            mainView = document.getElementById('main-view');
+            settingsView = document.getElementById('settings-view');
+            timerEl = document.getElementById('timer');
+            statusMessageEl = document.getElementById('statusMessage');
+            smokeButton = document.getElementById('smokeButton');
+            emergencySmokeButton = document.getElementById('emergencySmokeButton');
+            
+            smokedTodayValueEl = document.getElementById('smokedTodayValue');
+            smokedTodayPlannedEl = document.getElementById('smokedTodayPlanned');
+            spentTodayValueEl = document.getElementById('spentTodayValue');
+            spentTodayPlannedEl = document.getElementById('spentTodayPlanned');
+            totalMoneySavedEl = document.getElementById('totalMoneySaved');
+            smokeFreeStreakEl = document.getElementById('smokeFreeStreak');
+            longestSmokeFreeStreakEl = document.getElementById('longestSmokeFreeStreak');
+            expectedTotalMoneyEl = document.getElementById('expectedTotalMoney');
+            
+            openSettingsButton = document.getElementById('openSettingsButton');
+            closeSettingsButton = document.getElementById('closeSettingsButton');
+            saveSettingsButton = document.getElementById('saveSettingsButton');
+            resetDataButton = document.getElementById('resetDataButton');
+            
+            packPriceInput = document.getElementById('packPrice');
+            packSizeInput = document.getElementById('packSize'); 
+            oldHabitInput = document.getElementById('oldHabit');
+            smokeIntervalMinutesInput = document.getElementById('smokeIntervalMinutes');
+            oldHabitMoneyEl = document.getElementById('oldHabitMoney');
+            desiredDailySticksInput = document.getElementById('desiredDailySticks');
+            desiredDailySticksMoneyEl = document.getElementById('desiredDailySticksMoney');
+
+            dailySmokingChartSection = document.getElementById('dailySmokingChartSection');
+            dailySmokeChartCanvas = document.getElementById('dailySmokeChart');
+
+
+            confirmModal = document.getElementById('confirmModal');
+            modalText = document.getElementById('modalText');
+            confirmYes = document.getElementById('confirmYes');
+            confirmNo = document.getElementById('confirmNo');
+
+
+            // Ініціалізуємо Firebase тут, тепер, коли DOM-елементи гарантовано доступні
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                console.log("Firebase ініціалізовано успішно.");
+            } catch (error) {
+                console.error("Помилка ініціалізації Firebase:", error);
+                if (loader) {
+                    loader.textContent = "Помилка завантаження. Перевірте конфігурацію Firebase в консолі розробника.";
+                }
+                return; 
+            }
+
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     console.log(`[onAuthStateChanged] User detected: ${user.uid}. Loading data.`);
@@ -968,8 +915,6 @@
                 }
             });
         });
-
-
     </script>
 </body>
 </html>
