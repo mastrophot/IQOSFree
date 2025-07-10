@@ -89,6 +89,14 @@
             <!-- Зменшено mt-3 до mt-1 -->
             <button id="openSettingsButton" class="mt-1 text-slate-400 hover:text-white transition">Налаштування</button>
 
+            <!-- Кнопка для входу через Google -->
+            <button id="signInGoogleButton" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-5 h-5">
+                Увійти через Google
+            </button>
+            <p id="userIdDisplay" class="text-xs text-slate-500 mt-2">ID користувача: Завантаження...</p>
+
+
             <!-- Reduced mt-12 to mt-6 -->
             <!-- Зменшено mt-6 до mt-3 -->
             <div class="mt-3 p-6 bg-slate-800 rounded-xl space-y-4">
@@ -200,14 +208,23 @@
     <script type="module">
         // Import necessary functions from Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 
         // --- FIREBASE CONFIGURATION ---
-        // Use global variables provided by the Canvas environment
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quit-smoking-app-default';
+        // !!! ВСТАВ СВОЮ РЕАЛЬНУ КОНФІГУРАЦІЮ FIREBASE ТУТ !!!
+        // Скопіюй її з "Project settings" -> "Your apps" -> "Config" у консолі Firebase.
+        const firebaseConfig = {
+            apiKey: "AIzaSyASpsqHjAKc-dHe2pps1MYF0WYJEJkkUbE",
+            authDomain: "quit-smoking-max.firebaseapp.com",
+            projectId: "quit-smoking-max",
+            storageBucket: "quit-smoking-max.firebasestorage.app",
+            messagingSenderId: "53877466841",
+            appId: "1:53877466841:web:cde808b8a76596b19740c8"
+        };
+
+        const appId = firebaseConfig.appId || 'quit-smoking-app-default';
 
         let app;
         let db;
@@ -241,6 +258,9 @@
         let closeSettingsButton;
         let saveSettingsButton;
         let resetDataButton;
+
+        let signInGoogleButton; // Новий елемент для кнопки Google Sign-in
+        let userIdDisplay; // Елемент для відображення ID користувача
         
         let packPriceInput;
         let packSizeInput; 
@@ -273,8 +293,6 @@
                 smokeIntervalMinutes: 60, // Default: 60 minutes (1 hour)
                 desiredDailySticks: 10 // New setting: desired number of sticks per day
             },
-            // Removed dailyMoneySaved as the chart using it was removed
-            // Removed achievements object as it's no longer displayed, except for longestSmokeFreeStreakHours
             longestSmokeFreeStreakHours: 0 
         };
 
@@ -363,6 +381,7 @@
                 closeSettingsButton.addEventListener('click', toggleSettingsView);
                 saveSettingsButton.addEventListener('click', handleSaveSettings);
                 resetDataButton.addEventListener('click', handleResetData);
+                signInGoogleButton.addEventListener('click', handleGoogleSignIn); // Додано обробник для кнопки Google Sign-in
 
                 // Add input event listener for oldHabit to update money display in real-time
                 packPriceInput.addEventListener('input', () => {
@@ -832,6 +851,19 @@
             }
         }
 
+        // Функція для входу через Google
+        async function handleGoogleSignIn() {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+                console.log("Signed in with Google!");
+                // onAuthStateChanged обробить завантаження даних для нового користувача
+            } catch (error) {
+                console.error("Помилка входу через Google:", error);
+                // Обробка помилок входу (наприклад, скасовано користувачем)
+            }
+        }
+
 
         document.addEventListener('DOMContentLoaded', async () => {
             console.log("[DOMContentLoaded] DOM fully loaded. Starting Firebase authentication process.");
@@ -859,6 +891,9 @@
             closeSettingsButton = document.getElementById('closeSettingsButton');
             saveSettingsButton = document.getElementById('saveSettingsButton');
             resetDataButton = document.getElementById('resetDataButton');
+
+            signInGoogleButton = document.getElementById('signInGoogleButton'); // Ініціалізуємо нову кнопку
+            userIdDisplay = document.getElementById('userIdDisplay'); // Ініціалізуємо елемент для ID користувача
             
             packPriceInput = document.getElementById('packPrice');
             packSizeInput = document.getElementById('packSize'); 
@@ -896,9 +931,11 @@
                 if (user) {
                     console.log(`[onAuthStateChanged] User detected: ${user.uid}. Loading data.`);
                     userId = user.uid;
+                    userIdDisplay.textContent = `ID користувача: ${userId}`; // Відображаємо ID
                     await loadData();
                 } else {
                     console.log("[onAuthStateChanged] No user detected. Attempting anonymous sign-in.");
+                    userIdDisplay.textContent = "ID користувача: Не автентифіковано"; // Оновлюємо статус
                     try {
                         // Use __initial_auth_token if available, otherwise sign in anonymously
                         if (typeof __initial_auth_token !== 'undefined') {
