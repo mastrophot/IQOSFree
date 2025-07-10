@@ -98,7 +98,8 @@
             <button id="signOutButton" class="mt-2 w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg transition hidden">
                 Вийти
             </button>
-            <p id="userIdDisplay" class="text-xs text-slate-500 mt-2">ID користувача: Завантаження...</p>
+            <!-- Місце для відображення статусу користувача -->
+            <p id="userStatusDisplay" class="text-xs text-slate-500 mt-2">Завантаження статусу...</p>
 
 
             <!-- Reduced mt-12 to mt-6 -->
@@ -266,7 +267,7 @@
 
         let signInGoogleButton; // Новий елемент для кнопки Google Sign-in
         let signOutButton; // Новий елемент для кнопки виходу
-        let userIdDisplay; // Елемент для відображення ID користувача
+        let userStatusDisplay; // Змінено з userIdDisplay на userStatusDisplay
         
         let packPriceInput;
         let packSizeInput; 
@@ -317,7 +318,7 @@
             confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
             
             const newConfirmNo = confirmNo.cloneNode(true);
-            confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
+            confirmNo.parentNode.replaceChild(newConfirmNo, newConfirmNo);
 
 
             document.getElementById('confirmYes').onclick = () => {
@@ -919,7 +920,7 @@
 
             signInGoogleButton = document.getElementById('signInGoogleButton'); // Ініціалізуємо нову кнопку
             signOutButton = document.getElementById('signOutButton'); // Ініціалізуємо кнопку виходу
-            userIdDisplay = document.getElementById('userIdDisplay'); // Ініціалізуємо елемент для ID користувача
+            userStatusDisplay = document.getElementById('userStatusDisplay'); // Ініціалізуємо елемент для відображення статусу користувача
             
             packPriceInput = document.getElementById('packPrice');
             packSizeInput = document.getElementById('packSize'); 
@@ -970,17 +971,26 @@
                 if (user) {
                     console.log(`[onAuthStateChanged] User detected: ${user.uid}. Loading data.`);
                     userId = user.uid;
-                    userIdDisplay.textContent = `ID користувача: ${userId}`; // Відображаємо ID
-                    signInGoogleButton.classList.add('hidden'); // Приховуємо кнопку входу
-                    signOutButton.classList.remove('hidden'); // Показуємо кнопку виходу
+                    
+                    // Оновлюємо відображення статусу користувача
+                    if (user.isAnonymous) {
+                        userStatusDisplay.textContent = "Ви анонімний користувач";
+                        signInGoogleButton.classList.remove('hidden'); // Показуємо кнопку входу
+                        signOutButton.classList.add('hidden'); // Приховуємо кнопку виходу
+                    } else {
+                        const userName = user.displayName || user.email || `Користувач ID: ${user.uid}`;
+                        userStatusDisplay.textContent = `Привіт, ${userName}!`;
+                        signInGoogleButton.classList.add('hidden'); // Приховуємо кнопку входу
+                        signOutButton.classList.remove('hidden'); // Показуємо кнопку виходу
+                    }
+
                     await loadData();
                 } else {
                     console.log("[onAuthStateChanged] No user detected. Attempting anonymous sign-in.");
-                    userIdDisplay.textContent = "ID користувача: Не автентифіковано"; // Оновлюємо статус
+                    userStatusDisplay.textContent = "Ви не увійшли"; // Оновлюємо статус
                     signInGoogleButton.classList.remove('hidden'); // Показуємо кнопку входу
                     signOutButton.classList.add('hidden'); // Приховуємо кнопку виходу
                     try {
-                        // Use __initial_auth_token if available, otherwise sign in anonymously
                         // Примітка: __initial_auth_token використовується лише в середовищі Canvas
                         // Для GitHub Pages ця умова буде false, і буде анонімний вхід.
                         if (typeof __initial_auth_token !== 'undefined') {
