@@ -318,7 +318,7 @@
             confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
             
             const newConfirmNo = confirmNo.cloneNode(true);
-            confirmNo.parentNode.replaceChild(newConfirmNo, newConfirmNo);
+            confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
 
 
             document.getElementById('confirmYes').onclick = () => {
@@ -961,18 +961,25 @@
                     // Користувач успішно увійшов через Google після перенаправлення
                     console.log("Google Sign-in/Link redirect result:", result.user);
                     // onAuthStateChanged listener обробить подальшу логіку
+                } else {
+                    console.log("No redirect result found or redirect was cancelled/failed.");
                 }
             } catch (error) {
                 console.error("Помилка при отриманні результату перенаправлення Google Sign-in:", error);
-                // Обробка помилок під час перенаправлення
+                // Якщо сталася помилка під час перенаправлення, і користувач не анонімний,
+                // можливо, потрібно його вийти, щоб уникнути застрягання в невідомому стані.
+                if (auth.currentUser && !auth.currentUser.isAnonymous) {
+                    await signOut(auth);
+                    console.log("Forced sign out due to redirect result error.");
+                }
             }
 
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
-                    console.log(`[onAuthStateChanged] User detected: ${user.uid}. Loading data.`);
+                    console.log(`[onAuthStateChanged] User detected: ${user.uid}. Anonymous: ${user.isAnonymous}.`);
                     userId = user.uid;
                     
-                    // Оновлюємо відображення статусу користувача
+                    // Оновлюємо відображення статусу користувача та видимість кнопок
                     if (user.isAnonymous) {
                         userStatusDisplay.textContent = "Ви анонімний користувач";
                         signInGoogleButton.classList.remove('hidden'); // Показуємо кнопку входу
@@ -983,28 +990,21 @@
                         signInGoogleButton.classList.add('hidden'); // Приховуємо кнопку входу
                         signOutButton.classList.remove('hidden'); // Показуємо кнопку виходу
                     }
-
-                    await loadData();
+                    await loadData(); // Завантажуємо дані для поточного користувача
                 } else {
-                    console.log("[onAuthStateChanged] No user detected. Attempting anonymous sign-in.");
+                    console.log("[onAuthStateChanged] No user detected. Attempting anonymous sign-in or showing sign-in option.");
+                    userId = null; // Скидаємо userId, якщо користувача немає
                     userStatusDisplay.textContent = "Ви не увійшли"; // Оновлюємо статус
                     signInGoogleButton.classList.remove('hidden'); // Показуємо кнопку входу
                     signOutButton.classList.add('hidden'); // Приховуємо кнопку виходу
                     try {
-                        // Примітка: __initial_auth_token використовується лише в середовищі Canvas
-                        // Для GitHub Pages ця умова буде false, і буде анонімний вхід.
-                        if (typeof __initial_auth_token !== 'undefined') {
-                            // Цей блок коду, ймовірно, не буде виконуватися на GitHub Pages
-                            // оскільки __initial_auth_token не визначено поза Canvas.
-                            // Залишаємо його для повної сумісності, якщо код колись буде запущено в Canvas.
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                            console.log("Signed in with custom token.");
-                        } else {
+                        // Входимо анонімно, лише якщо немає поточного користувача взагалі
+                        if (!auth.currentUser) {
                             await signInAnonymously(auth);
                             console.log("Signed in anonymously.");
                         }
                     } catch (anonError) {
-                        console.error("Authentication failed:", anonError);
+                        console.error("Authentication failed during anonymous sign-in:", anonError);
                         loader.textContent = "Помилка автентифікації. Спробуйте оновити сторінку.";
                     }
                 }
