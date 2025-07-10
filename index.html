@@ -94,6 +94,10 @@
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-5 h-5">
                 Увійти через Google
             </button>
+            <!-- Кнопка для виходу (прихована за замовчуванням) -->
+            <button id="signOutButton" class="mt-2 w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg transition hidden">
+                Вийти
+            </button>
             <p id="userIdDisplay" class="text-xs text-slate-500 mt-2">ID користувача: Завантаження...</p>
 
 
@@ -209,7 +213,7 @@
         // Import necessary functions from Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         // Імпортуємо getRedirectResult для обробки перенаправлення
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 
@@ -261,6 +265,7 @@
         let resetDataButton;
 
         let signInGoogleButton; // Новий елемент для кнопки Google Sign-in
+        let signOutButton; // Новий елемент для кнопки виходу
         let userIdDisplay; // Елемент для відображення ID користувача
         
         let packPriceInput;
@@ -383,6 +388,7 @@
                 saveSettingsButton.addEventListener('click', handleSaveSettings);
                 resetDataButton.addEventListener('click', handleResetData);
                 signInGoogleButton.addEventListener('click', handleGoogleSignIn); // Додано обробник для кнопки Google Sign-in
+                signOutButton.addEventListener('click', handleSignOut); // Додано обробник для кнопки виходу
 
                 // Add input event listener for oldHabit to update money display in real-time
                 packPriceInput.addEventListener('input', () => {
@@ -865,6 +871,18 @@
             }
         }
 
+        // Функція для виходу
+        async function handleSignOut() {
+            try {
+                await signOut(auth);
+                console.log("User signed out.");
+                // Після виходу onAuthStateChanged listener оновиться і приховає кнопку виходу
+                // і покаже кнопку входу. Дані будуть скинуті або завантажені для анонімного користувача.
+            } catch (error) {
+                console.error("Помилка виходу:", error);
+            }
+        }
+
 
         document.addEventListener('DOMContentLoaded', async () => {
             console.log("[DOMContentLoaded] DOM fully loaded. Starting Firebase authentication process.");
@@ -894,6 +912,7 @@
             resetDataButton = document.getElementById('resetDataButton');
 
             signInGoogleButton = document.getElementById('signInGoogleButton'); // Ініціалізуємо нову кнопку
+            signOutButton = document.getElementById('signOutButton'); // Ініціалізуємо кнопку виходу
             userIdDisplay = document.getElementById('userIdDisplay'); // Ініціалізуємо елемент для ID користувача
             
             packPriceInput = document.getElementById('packPrice');
@@ -934,7 +953,7 @@
                 if (result) {
                     // Користувач успішно увійшов через Google після перенаправлення
                     console.log("Google Sign-in redirect result:", result.user);
-                    // Firebase onAuthStateChanged listener обробить подальшу логіку
+                    // onAuthStateChanged listener обробить подальшу логіку
                 }
             } catch (error) {
                 console.error("Помилка при отриманні результату перенаправлення Google Sign-in:", error);
@@ -946,10 +965,14 @@
                     console.log(`[onAuthStateChanged] User detected: ${user.uid}. Loading data.`);
                     userId = user.uid;
                     userIdDisplay.textContent = `ID користувача: ${userId}`; // Відображаємо ID
+                    signInGoogleButton.classList.add('hidden'); // Приховуємо кнопку входу
+                    signOutButton.classList.remove('hidden'); // Показуємо кнопку виходу
                     await loadData();
                 } else {
                     console.log("[onAuthStateChanged] No user detected. Attempting anonymous sign-in.");
                     userIdDisplay.textContent = "ID користувача: Не автентифіковано"; // Оновлюємо статус
+                    signInGoogleButton.classList.remove('hidden'); // Показуємо кнопку входу
+                    signOutButton.classList.add('hidden'); // Приховуємо кнопку виходу
                     try {
                         // Use __initial_auth_token if available, otherwise sign in anonymously
                         if (typeof __initial_auth_token !== 'undefined') {
