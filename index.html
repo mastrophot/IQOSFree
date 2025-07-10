@@ -213,7 +213,7 @@
         // Import necessary functions from Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         // Імпортуємо getRedirectResult для обробки перенаправлення
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, linkWithRedirect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 
@@ -862,9 +862,15 @@
         async function handleGoogleSignIn() {
             const provider = new GoogleAuthProvider();
             try {
-                // Змінено на signInWithRedirect
-                await signInWithRedirect(auth, provider);
-                console.log("Redirecting to Google for sign-in...");
+                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                    // Якщо користувач анонімний, спробувати зв'язати обліковий запис
+                    console.log("Linking anonymous account with Google...");
+                    await linkWithRedirect(auth.currentUser, provider);
+                } else {
+                    // Інакше, просто увійти або зареєструватися через Google
+                    console.log("Signing in with Google redirect...");
+                    await signInWithRedirect(auth, provider);
+                }
             } catch (error) {
                 console.error("Помилка входу через Google:", error);
                 // Обробка помилок входу (наприклад, скасовано користувачем)
@@ -952,7 +958,7 @@
                 const result = await getRedirectResult(auth);
                 if (result) {
                     // Користувач успішно увійшов через Google після перенаправлення
-                    console.log("Google Sign-in redirect result:", result.user);
+                    console.log("Google Sign-in/Link redirect result:", result.user);
                     // onAuthStateChanged listener обробить подальшу логіку
                 }
             } catch (error) {
@@ -975,7 +981,12 @@
                     signOutButton.classList.add('hidden'); // Приховуємо кнопку виходу
                     try {
                         // Use __initial_auth_token if available, otherwise sign in anonymously
+                        // Примітка: __initial_auth_token використовується лише в середовищі Canvas
+                        // Для GitHub Pages ця умова буде false, і буде анонімний вхід.
                         if (typeof __initial_auth_token !== 'undefined') {
+                            // Цей блок коду, ймовірно, не буде виконуватися на GitHub Pages
+                            // оскільки __initial_auth_token не визначено поза Canvas.
+                            // Залишаємо його для повної сумісності, якщо код колись буде запущено в Canvas.
                             await signInWithCustomToken(auth, __initial_auth_token);
                             console.log("Signed in with custom token.");
                         } else {
