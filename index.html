@@ -81,7 +81,7 @@
                     Я щойно покурив
                 </button>
                 <button id="emergencySmokeButton" class="w-1/5 bg-red-500 hover:bg-red-600 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold py-4 px-1 rounded-xl text-sm transition-all duration-200 shadow-lg shadow-red-500/20">
-                    Стік<br>поза забороною
+                    Стік<br>поза нормою
                 </button>
             </div>
 
@@ -208,7 +208,8 @@
     <script type="module">
         // Import necessary functions from Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // Імпортуємо getRedirectResult для обробки перенаправлення
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 
@@ -836,7 +837,7 @@
                                 stack: 'Stack 0'
                             },
                             {
-                                label: 'Поза забороною',
+                                label: 'Поза нормою', // Changed label here
                                 data: emergencySmokesData,
                                 backgroundColor: 'rgba(255, 165, 0, 0.5)', // Orange for emergency smokes
                                 borderColor: 'rgba(255, 165, 0, 1)',
@@ -855,9 +856,9 @@
         async function handleGoogleSignIn() {
             const provider = new GoogleAuthProvider();
             try {
-                await signInWithPopup(auth, provider);
-                console.log("Signed in with Google!");
-                // onAuthStateChanged обробить завантаження даних для нового користувача
+                // Змінено на signInWithRedirect
+                await signInWithRedirect(auth, provider);
+                console.log("Redirecting to Google for sign-in...");
             } catch (error) {
                 console.error("Помилка входу через Google:", error);
                 // Обробка помилок входу (наприклад, скасовано користувачем)
@@ -925,6 +926,19 @@
                     loader.textContent = "Помилка завантаження. Перевірте конфігурацію Firebase в консолі розробника.";
                 }
                 return; 
+            }
+
+            // Обробка результату перенаправлення для Google Sign-in
+            try {
+                const result = await getRedirectResult(auth);
+                if (result) {
+                    // Користувач успішно увійшов через Google після перенаправлення
+                    console.log("Google Sign-in redirect result:", result.user);
+                    // Firebase onAuthStateChanged listener обробить подальшу логіку
+                }
+            } catch (error) {
+                console.error("Помилка при отриманні результату перенаправлення Google Sign-in:", error);
+                // Обробка помилок під час перенаправлення
             }
 
             onAuthStateChanged(auth, async (user) => {
