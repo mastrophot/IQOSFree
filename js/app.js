@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, linkWithRedirect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, linkWithRedirect, signInWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { firebaseConfig, appId } from './firebase-config.js';
@@ -278,6 +278,8 @@ function toggleSettingsView() {
 // Auth Handlers
 async function handleGoogleSignIn() {
     const provider = new GoogleAuthProvider();
+    signInGoogleButton.disabled = true;
+    signInGoogleButton.textContent = "Переадресація...";
     try {
         if (auth.currentUser && auth.currentUser.isAnonymous) {
             await linkWithRedirect(auth.currentUser, provider);
@@ -286,7 +288,9 @@ async function handleGoogleSignIn() {
         }
     } catch (error) {
         console.error("Auth error:", error);
-        userStatusDisplay.textContent = "Помилка входу.";
+        userStatusDisplay.textContent = `Помилка: ${error.message}`;
+        signInGoogleButton.disabled = false;
+        signInGoogleButton.textContent = "Увійти через Google";
     }
 }
 
@@ -374,10 +378,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Handle Redirect Result
+    // Handle Redirect Result
     try {
         await getRedirectResult(auth);
     } catch (error) {
         console.error("Redirect result error:", error);
+        if (error.code === 'auth/credential-already-in-use') {
+            userStatusDisplay.textContent = "Акаунт вже існує. Входимо...";
+            if (error.credential) {
+                try {
+                    await signInWithCredential(auth, error.credential);
+                } catch (reauthError) {
+                    console.error("Reauth error:", reauthError);
+                    userStatusDisplay.textContent = "Помилка повторного входу.";
+                }
+            }
+        } else {
+            userStatusDisplay.textContent = `Помилка входу: ${error.message}`;
+        }
     }
 
     // Auth State Listener
