@@ -17,7 +17,7 @@ const getDefaultAppData = () => ({
     lastSmokeTime: null,
     smokeHistory: [],
     settings: {
-        packPrice: 100,
+        packPrice: 5,
         packSize: 20,
         oldHabit: 20, 
         smokeIntervalMinutes: 60, 
@@ -198,8 +198,8 @@ function updateStatistics(now) {
     const actualSpentToday = smokedTodayCount * pricePerCig;
     const plannedSpentToday = desiredDailySticks * pricePerCig;
     
-    spentTodayValueEl.textContent = `${actualSpentToday.toFixed(2)} грн`; 
-    spentTodayPlannedEl.textContent = `З ${plannedSpentToday.toFixed(2)} грн запланованих`;
+    spentTodayValueEl.textContent = `$${actualSpentToday.toFixed(2)}`; 
+    spentTodayPlannedEl.textContent = `З $${plannedSpentToday.toFixed(2)} запланованих`;
 
     if (smokedTodayCount > desiredDailySticks) {
         spentTodayValueEl.classList.remove('text-green-400');
@@ -215,7 +215,7 @@ function updateStatistics(now) {
     
     // Financial Balance Logic (Signed Profit/Loss)
     const balance = (expectedTotalSmokes - actualTotalSmokes) * pricePerCig;
-    financialBalanceValueEl.textContent = `${balance > 0 ? '+' : ''}${balance.toFixed(2)} грн`;
+    financialBalanceValueEl.textContent = `${balance < 0 ? '-' : '+'}$${Math.abs(balance).toFixed(2)}`;
 
     if (balance >= 0) {
         financialBalanceValueEl.classList.remove('text-red-500');
@@ -514,7 +514,7 @@ function updateOldHabitMoneyDisplay() {
     const oldHabit = Number(oldHabitInput.value) || 0;
     const pricePerCig = (packSize > 0) ? packPrice / packSize : 0;
     const oldHabitCost = oldHabit * pricePerCig;
-    oldHabitMoneyEl.textContent = `${oldHabitCost.toFixed(2)} грн`;
+    oldHabitMoneyEl.textContent = `$${oldHabitCost.toFixed(2)}/день`;
 }
 
 function updateDesiredDailySticksMoneyDisplay() {
@@ -523,7 +523,7 @@ function updateDesiredDailySticksMoneyDisplay() {
     const desiredDailySticks = Number(desiredDailySticksInput.value) || 0;
     const pricePerCig = (packSize > 0) ? packPrice / packSize : 0;
     const desiredDailySticksCost = desiredDailySticks * pricePerCig;
-    desiredDailySticksMoneyEl.textContent = `${desiredDailySticksCost.toFixed(2)} грн`;
+    desiredDailySticksMoneyEl.textContent = `$${desiredDailySticksCost.toFixed(2)}/день`;
 }
 
 function handleSaveSettings() {
