@@ -610,10 +610,10 @@ function handleSmoke(type = 'regular') {
     const damage = type === 'regular' ? 5 : 10;
     appData.healthIntegrity = Math.max(0, appData.healthIntegrity - damage);
     
-    // Growth Slowdown Logic (Instead of resetting to Stage 1)
-    // Regular penalty: 6 hours of progress
-    // Emergency penalty: 12 hours of progress
-    const msPenalty = type === 'regular' ? (1000 * 60 * 60 * 6) : (1000 * 60 * 60 * 12);
+    // Growth Slowdown Logic (Bio-Core 2.1: Ultra-Progressive)
+    // Regular penalty: 1 hour of progress (Equilibrium at 24/day)
+    // Emergency penalty: 2 hours of progress
+    const msPenalty = type === 'regular' ? (1000 * 60 * 60 * 1) : (1000 * 60 * 60 * 2);
     appData.evolutionPointsMs = Math.max(0, appData.evolutionPointsMs - msPenalty);
     
     appData.lastSmokeTime = new Date().getTime();
