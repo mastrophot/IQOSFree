@@ -24,7 +24,10 @@ let appData = {
         desiredDailySticks: 10 
     },
     longestSmokeFreeStreakHours: 0,
-    appStartDate: Date.now() 
+    longestSmokeFreeStreakHours: 0,
+    appStartDate: Date.now(),
+    healthIntegrity: 100, // New Bio-Core State
+    lastIntegrityUpdate: Date.now()
 };
 
 let eventListenersAttached = false;
@@ -42,6 +45,7 @@ let dailySmokingChartSection, dailySmokeChartCanvas;
 let statisticsSection, smokeChartCanvas;
 let totalSmokesAllTimeEl, avgSmokesPerDayEl;
 let statsTabs, statsModeBtns;
+let bioCoreEl, integrityBarEl; // New Elements
 let insightsSection, peakHourValueEl, activityHeatmapEl, heatmapLabelsEl;
 let currentChartPeriod = 'day';
 let currentChartMode = 'sticks';
@@ -98,10 +102,14 @@ async function loadData() {
             appData.settings.desiredDailySticks = loadedData.settings?.desiredDailySticks ?? 10;
             appData.appStartDate = loadedData.appStartDate || Date.now();
             appData.longestSmokeFreeStreakHours = loadedData.longestSmokeFreeStreakHours || 0;
+            appData.healthIntegrity = loadedData.healthIntegrity ?? 100; // Load or Default
+            appData.lastIntegrityUpdate = loadedData.lastIntegrityUpdate || Date.now();
         } else {
             console.log("No such document! Creating default.");
             appData.appStartDate = Date.now();
             appData.longestSmokeFreeStreakHours = 0; 
+            appData.healthIntegrity = 100;
+            appData.lastIntegrityUpdate = Date.now();
             await saveData(); 
         }
     } catch (error) {
@@ -153,6 +161,10 @@ function updateUI() {
 
     emergencySmokeButton.disabled = false;
     updateStatistics(now);
+
+    renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
+    updateStatistics(now);
+    updateAvatar(); // Call Avatar Update
 
     renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
     updateGlobalStats();
@@ -336,6 +348,40 @@ function updateInsights() {
     }
 }
 
+function updateAvatar() { // New Bio-Core Visuals
+    if (!bioCoreEl || !integrityBarEl) return;
+    
+    // 1. Regenerate Health (1% per hour)
+    const now = Date.now();
+    const lastUpdate = appData.lastIntegrityUpdate || now;
+    const diffHours = (now - lastUpdate) / (1000 * 60 * 60);
+    
+    if (diffHours > 0) {
+        const regenAmount = diffHours * 1; // 1% per hour
+        appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
+        appData.lastIntegrityUpdate = now;
+        // Optimization: Save occasionally or on smoke? 
+        // For accurate tracking we rely on periodic saving or save on exit/smoke.
+        // To avoid spamming saves in loop, we rely on local appData state and save on events.
+        // However, if user reloads, we lose fractional regeneration since last save?
+        // Let's assume 'saveData' is called on major events, slight precision loss is fine.
+    }
+
+    // 2. Update Visuals
+    const integrity = appData.healthIntegrity;
+    
+    // Classes
+    bioCoreEl.classList.remove('so-zen', 'so-fine', 'so-warn', 'so-crit');
+    if (integrity >= 80) bioCoreEl.classList.add('so-zen');
+    else if (integrity >= 50) bioCoreEl.classList.add('so-fine');
+    else if (integrity >= 20) bioCoreEl.classList.add('so-warn');
+    else bioCoreEl.classList.add('so-crit');
+    
+    // Bar
+    integrityBarEl.style.width = `${integrity}%`;
+    integrityBarEl.style.backgroundColor = integrity < 20 ? '#ef4444' : '#10b981';
+}
+
 function updateGlobalStats() {
     const totalSmokes = appData.smokeHistory.length;
     totalSmokesAllTimeEl.textContent = totalSmokes;
@@ -385,6 +431,11 @@ function handleChartModeClick(e) {
 
 function handleSmoke(type = 'regular') {
     console.log(`[handleSmoke] ${type} smoke button clicked!`);
+    
+    // Integrity Deduction Logic
+    const damage = type === 'regular' ? 15 : 5;
+    appData.healthIntegrity = Math.max(0, appData.healthIntegrity - damage);
+    
     appData.lastSmokeTime = new Date().getTime();
     appData.smokeHistory.push({ timestamp: appData.lastSmokeTime, type: type });
     saveData();
@@ -522,6 +573,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingsView = document.getElementById('settings-view');
     timerEl = document.getElementById('timer');
     statusMessageEl = document.getElementById('statusMessage');
+    bioCoreEl = document.getElementById('bioCore'); // New
+    integrityBarEl = document.getElementById('integrityBar'); // New
     smokeButton = document.getElementById('smokeButton');
     emergencySmokeButton = document.getElementById('emergencySmokeButton');
     
