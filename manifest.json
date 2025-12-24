@@ -8,12 +8,12 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "assets/icons/icon-192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "icon-512.png",
+      "src": "assets/icons/icon-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }
@@ -23,13 +23,13 @@
       "name": "ПОКУРИВ",
       "short_name": "ПОКУРИВ",
       "url": "./index.html?action=smoke",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Стік поза графіком",
       "short_name": "Поза графіком",
       "url": "./index.html?action=emergency",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

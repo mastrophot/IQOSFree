@@ -1,11 +1,11 @@
-const CACHE_NAME = 'iqosfree-v25';
+const CACHE_NAME = 'iqosfree-v26';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
+  './assets/icons/icon-192.png',
+  './assets/icons/icon-512.png',
   './js/app.js',
   './js/utils.js',
   './js/charts.js',
