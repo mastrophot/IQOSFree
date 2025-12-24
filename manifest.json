@@ -17,5 +17,38 @@
       "type": "image/png",
       "sizes": "512x512"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "ПОКУРИВ",
+      "short_name": "ПОКУРИВ",
+      "description": "Зафіксувати звичайний стік",
+      "url": "./index.html?action=smoke",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Стік поза графіком",
+      "short_name": "Поза графіком",
+      "description": "Зафіксувати позачерговий стік",
+      "url": "./index.html?action=emergency",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "widgets": [
+    {
+      "name": "IQOSFree Tracker",
+      "description": "Швидкий доступ до фіксації куріння",
+      "tag": "iqosfree-widget",
+      "template": "widget-template",
+      "ms_allow_resizable": true,
+      "screenshots": [
+        {
+          "src": "icon-512.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "label": "Віджет IQOSFree"
+        }
+      ]
+    }
   ]
 }

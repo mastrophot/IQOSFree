@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iqosfree-v18';
+const CACHE_NAME = 'iqosfree-v19';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -10,6 +10,10 @@ const ASSETS_TO_CACHE = [
   './js/utils.js',
   './js/charts.js',
   './js/firebase-config.js',
+  './assets/tree_1.png',
+  './assets/tree_2.png',
+  './assets/tree_3.png',
+  './assets/tree_4.png',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
@@ -50,4 +54,15 @@ self.addEventListener('activate', (event) => {
           );
       })
   );
+});
+
+// PWA Widgets event listener (Experimental Android/Windows support) logic.
+self.addEventListener('widgetclick', event => {
+  if (event.action === 'smoke') {
+    event.waitUntil(clients.openWindow('./index.html?action=smoke'));
+  } else if (event.action === 'emergency') {
+    event.waitUntil(clients.openWindow('./index.html?action=emergency'));
+  } else {
+    event.waitUntil(clients.openWindow('./index.html'));
+  }
 });

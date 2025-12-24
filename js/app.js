@@ -823,6 +823,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         isInitialAuthCheckComplete = true; 
     });
 
+    // PWA Shortcut handling logic.
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    if (action === 'smoke') {
+        setTimeout(() => handleSmoke('regular'), 1500); // Small delay to let app load logic.
+    } else if (action === 'emergency') {
+        setTimeout(() => handleSmoke('emergency'), 1500);
+    }
+
     setInterval(updateUI, 1000);
 });
 
