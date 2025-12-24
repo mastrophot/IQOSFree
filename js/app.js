@@ -39,7 +39,8 @@ let isInitialAuthCheckComplete = false;
 let loader, appContainer, mainView, settingsView, timerEl, statusMessageEl;
 let smokeButton, emergencySmokeButton, openSettingsButton, closeSettingsButton, saveSettingsButton, resetDataButton;
 let smokedTodayValueEl, smokedTodayPlannedEl, spentTodayValueEl, spentTodayPlannedEl;
-let totalMoneySavedEl, smokeFreeStreakEl, longestSmokeFreeStreakEl, expectedTotalMoneyEl;
+let smokeFreeStreakEl, longestSmokeFreeStreakEl;
+let balanceCardEl, financialBalanceLabelEl, financialBalanceValueEl, balanceIconEl;
 let signInGoogleButton, signOutButton, userStatusDisplay;
 let packPriceInput, packSizeInput, oldHabitInput, smokeIntervalMinutesInput, oldHabitMoneyEl, desiredDailySticksInput, desiredDailySticksMoneyEl;
 let dailySmokingChartSection, dailySmokeChartCanvas;
@@ -210,13 +211,24 @@ function updateStatistics(now) {
     const expectedTotalSmokes = daysSinceAppStart * oldHabit; 
     const actualTotalSmokes = appData.smokeHistory.length;
     
-    // 1. Total Money SAVED (Cumulative)
-    const totalMoneySaved = Math.max(0, (expectedTotalSmokes - actualTotalSmokes) * pricePerCig); 
-    totalMoneySavedEl.textContent = `${totalMoneySaved.toFixed(2)} грн`;
+    // Financial Balance Logic (Signed Profit/Loss)
+    const balance = (expectedTotalSmokes - actualTotalSmokes) * pricePerCig;
+    financialBalanceValueEl.textContent = `${balance > 0 ? '+' : ''}${balance.toFixed(2)} грн`;
 
-    // 2. Expected Total Money (If hadn't quit)
-    const totalExpectedMoney = expectedTotalSmokes * pricePerCig;
-    expectedTotalMoneyEl.textContent = `${totalExpectedMoney.toFixed(2)} грн`;
+    if (balance >= 0) {
+        financialBalanceValueEl.classList.remove('text-red-500');
+        financialBalanceValueEl.classList.add('text-emerald-400');
+        financialBalanceLabelEl.textContent = 'Зекономлено (Профіт)';
+        balanceCardEl.classList.replace('border-red-500/50', 'border-emerald-500/50');
+        balanceIconEl.textContent = '💰';
+    } else {
+        financialBalanceValueEl.classList.remove('text-emerald-400');
+        financialBalanceValueEl.classList.add('text-red-500');
+        financialBalanceLabelEl.textContent = 'Перевитрата (Дефіцит)';
+        balanceCardEl.classList.remove('border-emerald-500/50');
+        balanceCardEl.classList.add('border-red-500/50');
+        balanceIconEl.textContent = '⚠️';
+    }
 
 
     let streakMinutes = 0;
@@ -618,10 +630,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     smokedTodayPlannedEl = document.getElementById('smokedTodayPlanned');
     spentTodayValueEl = document.getElementById('spentTodayValue');
     spentTodayPlannedEl = document.getElementById('spentTodayPlanned');
-    totalMoneySavedEl = document.getElementById('totalMoneySaved');
+    balanceCardEl = document.getElementById('balanceCard');
+    financialBalanceLabelEl = document.getElementById('financialBalanceLabel');
+    financialBalanceValueEl = document.getElementById('financialBalanceValue');
+    balanceIconEl = document.getElementById('balanceIcon');
     smokeFreeStreakEl = document.getElementById('smokeFreeStreak');
     longestSmokeFreeStreakEl = document.getElementById('longestSmokeFreeStreak');
-    expectedTotalMoneyEl = document.getElementById('expectedTotalMoney');
     
     openSettingsButton = document.getElementById('openSettingsButton');
     closeSettingsButton = document.getElementById('closeSettingsButton');
