@@ -488,6 +488,14 @@ function handleChartModeClick(e) {
 function handleSmoke(type = 'regular') {
     console.log(`[handleSmoke] ${type} smoke button clicked!`);
     
+    // Spring Interaction Feedback 2025
+    const btn = type === 'regular' ? smokeButton : emergencySmokeButton;
+    if (btn) {
+        btn.style.transform = 'scale(0.96)';
+        btn.style.transition = 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        setTimeout(() => btn.style.transform = '', 150);
+    }
+    
     // Integrity Deduction Logic
     const damage = type === 'regular' ? 15 : 5;
     appData.healthIntegrity = Math.max(0, appData.healthIntegrity - damage);
@@ -551,8 +559,19 @@ async function handleResetData() {
 }
 
 function toggleSettingsView() {
-    mainView.classList.toggle('hidden');
-    settingsView.classList.toggle('hidden');
+    const action = () => {
+        mainView.classList.toggle('hidden');
+        settingsView.classList.toggle('hidden');
+        if (!settingsView.classList.contains('hidden')) {
+            updateSettingsInputs();
+        }
+    };
+
+    if (!document.startViewTransition) {
+        action();
+    } else {
+        document.startViewTransition(action);
+    }
 }
 
 // Auth Handlers
