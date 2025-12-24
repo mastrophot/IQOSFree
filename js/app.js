@@ -439,92 +439,100 @@ function renderLifeTree(stage, health) {
         container.appendChild(svg);
     }
 
-    // 1. Define Colors & Gradients logic.
+    // 1. Claymorphism Palette logic.
     const isSick = health < 40;
-    const foliageColor = isSick ? 'oklch(65% 0.15 70)' : 'oklch(75% 0.18 165)';
-    const foliageDark = isSick ? 'oklch(50% 0.12 70)' : 'oklch(60% 0.15 165)';
-    const trunkColor = 'oklch(35% 0.05 45)';
+    const baseGreen = isSick ? 'oklch(60% 0.1 70)' : 'oklch(70% 0.15 160)';
+    const lightGreen = isSick ? 'oklch(70% 0.08 70)' : 'oklch(80% 0.12 160)';
+    const darkGreen = isSick ? 'oklch(45% 0.12 70)' : 'oklch(55% 0.18 160)';
+    const trunkColor = 'oklch(40% 0.06 45)';
+    const trunkLight = 'oklch(50% 0.05 45)';
 
+    // 2. SVG Filters for Clay Depth logic.
     let innerHTML = `
         <defs>
-            <radialGradient id="foliageGrad" cx="40%" cy="40%" r="60%">
-                <stop offset="0%" style="stop-color:${foliageColor};" />
-                <stop offset="100%" style="stop-color:${foliageDark};" />
-            </radialGradient>
-            <filter id="softBlur" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+            <!-- Clay Inner Shadow Filter logic. -->
+            <filter id="clayFilter" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur" />
+                <feOffset dx="-4" dy="-4" />
+                <feSpecularLighting surfaceScale="5" specularConstant="0.8" specularExponent="20" lighting-color="white" result="specular">
+                    <fePointLight x="-50" y="-50" z="300" />
+                </feSpecularLighting>
+                <feComposite in="specular" in2="SourceAlpha" operator="in" result="gloss" />
+                <feMerge>
+                    <feMergeNode in="SourceGraphic" />
+                    <feMergeNode in="gloss" />
+                </feMerge>
             </filter>
+            
+            <linearGradient id="trunkGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:${trunkColor};" />
+                <stop offset="50%" style="stop-color:${trunkLight};" />
+                <stop offset="100%" style="stop-color:${trunkColor};" />
+            </linearGradient>
+
+            <radialGradient id="canopyGrad" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" style="stop-color:${lightGreen};" />
+                <stop offset="100%" style="stop-color:${darkGreen};" />
+            </radialGradient>
         </defs>
     `;
 
-    // 2. Trunk Design (Flared and textured) logic.
-    const trunkW = 16 + (stage * 6);
-    const trunkH = 50 + (stage * 20);
-    const baseY = 210;
-    const topY = baseY - trunkH;
+    // 3. Round "Clay" Trunk logic.
+    const trunkW = 24 + (stage * 6);
+    const trunkH = 40 + (stage * 15);
+    const baseY = 200;
     
-    // More organic trunk path logic.
-    const trunkPath = `
-        M ${120 - trunkW/1.2} ${baseY} 
-        Q ${120 - trunkW} ${baseY + 10} ${120 - trunkW*1.5} ${baseY + 15}
-        L ${120 + trunkW*1.5} ${baseY + 15}
-        Q ${120 + trunkW} ${baseY + 10} ${120 + trunkW/1.2} ${baseY}
-        L ${120 + trunkW/3} ${topY}
-        Q ${120} ${topY - 10} ${120 - trunkW/3} ${topY}
-        Z
+    innerHTML += `
+        <rect x="${120 - trunkW/2}" y="${baseY - trunkH}" width="${trunkW}" height="${trunkH}" 
+              rx="${trunkW/2}" fill="url(#trunkGrad)" filter="url(#clayFilter)" 
+              style="transition: all 1s ease;" />
     `;
-    
-    innerHTML += `<path class="tree-trunk" d="${trunkPath}" fill="${trunkColor}" />`;
-    
-    // Bark texture (simple vertical lines) logic.
-    for(let j=0; j<3; j++) {
-        const lineX = 120 - (trunkW/4) + (j * (trunkW/4));
-        innerHTML += `<path d="M ${lineX} ${baseY} Q ${lineX + (Math.random()*4-2)} ${baseY-trunkH/2} ${lineX} ${topY+10}" stroke="oklch(0% 0 0 / 15%)" stroke-width="2" fill="none" opacity="0.4" />`;
-    }
 
-    // 3. Fluffy Canopy Blobs logic.
-    // Each blob is an overlapping cloud section logic.
-    const blobCount = 3 + (stage * 2);
-    const radius = 30 + (stage * 12);
-    const centerX = 120;
-    const centerY = topY + 10;
+    // 4. Soft Canopy "Bubbles" logic.
+    const radius = 35 + (stage * 10);
+    const centerY = baseY - trunkH - (radius * 0.4);
     
     const visiblePercent = health / 100;
-    const leavesToRender = Math.floor(visiblePercent * blobCount);
+    const blobCount = 3 + (stage * 1);
+    const visibleBlobs = Math.max(1, Math.floor(visiblePercent * blobCount));
 
     for (let i = 0; i < blobCount; i++) {
+        const isVisible = i < visibleBlobs;
+        const scale = isVisible ? 1 : 0.4;
+        const opacity = isVisible ? 1 : 0;
         const angle = (i / blobCount) * Math.PI * 2 - Math.PI/2;
-        const dist = radius * 0.7;
-        const bx = centerX + Math.cos(angle) * dist;
-        const by = centerY + Math.sin(angle) * (dist * 0.8);
-        const bRadius = radius * (0.8 + Math.sin(i)*0.2);
+        const dist = i === 0 ? 0 : radius * 0.6;
         
-        const isVisible = i < leavesToRender || i === 0; // Center blob always partially visible logic.
-        const opacity = isVisible ? 1 : 0.2;
-        const scale = isVisible ? 1 : 0.5;
+        const bx = 120 + Math.cos(angle) * dist;
+        const by = centerY + Math.sin(angle) * (dist * 0.6);
+        const bRadius = i === 0 ? radius * 1.1 : radius * 0.9;
 
-        // The Cloud Blob logic.
         innerHTML += `
-            <g style="transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); transform: translate(${bx}px, ${by}px) scale(${scale}); opacity: ${opacity}">
-                <circle cx="0" cy="0" r="${bRadius}" fill="url(#foliageGrad)" />
-                <!-- Small Leaves on top of blob -->
-                ${renderLeafParticles(bRadius, isSick)}
-            </g>
+            <circle cx="${bx}" cy="${by}" r="${bRadius}" 
+                    fill="url(#canopyGrad)" 
+                    filter="url(#clayFilter)"
+                    style="transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: ${bx}px ${by}px; transform: scale(${scale}); opacity: ${opacity};" />
         `;
+    }
+
+    // 5. Small Pressed Leaves logic.
+    if (health > 10) {
+        innerHTML += renderClayLeaves(120, centerY, radius, isSick);
     }
 
     svg.innerHTML = innerHTML;
 }
 
-function renderLeafParticles(radius, isSick) {
+function renderClayLeaves(cx, cy, radius, isSick) {
     let leaves = '';
-    const leafColor = isSick ? 'oklch(55% 0.12 75)' : 'oklch(85% 0.15 165)';
-    for(let l=0; l<4; l++) {
-        const la = (l/4) * Math.PI * 2;
-        const lx = Math.cos(la) * (radius * 0.6);
-        const ly = Math.sin(la) * (radius * 0.6);
-        const rot = (la * 180 / Math.PI) + 45;
-        leaves += `<ellipse cx="${lx}" cy="${ly}" rx="6" ry="3" fill="${leafColor}" transform="rotate(${rot} ${lx} ${ly})" opacity="0.8" />`;
+    const leafColor = isSick ? 'oklch(50% 0.1 75)' : 'oklch(80% 0.15 160)';
+    for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const lx = cx + Math.cos(angle) * (radius * 0.5);
+        const ly = cy + Math.sin(angle) * (radius * 0.5);
+        leaves += `
+            <circle cx="${lx}" cy="${ly}" r="6" fill="${leafColor}" opacity="0.6" filter="blur(1px)" />
+        `;
     }
     return leaves;
 }
