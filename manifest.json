@@ -17,5 +17,27 @@
       "type": "image/png",
       "sizes": "512x512"
     }
+  ],
+  "widgets": [
+    {
+      "name": "Прогрес",
+      "short_name": "Прогрес",
+      "description": "Таймер і статистика",
+      "tag": "iqos-stats",
+      "template": "widget",
+      "ms_ac_template": "widget.html",
+      "data": "widget.html",
+      "type": "application/x-web-app-widget",
+      "auth": false,
+      "update": 3600,
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ],
+      "screenshots": []
+    }
   ]
 }

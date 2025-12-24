@@ -123,6 +123,21 @@ async function saveData() {
     }
 }
 
+// --- WIDGET SYNC ---
+function saveToWidgetStorage() {
+    if (!appData || !appData.lastSmokeTime) return;
+    try {
+        const widgetData = {
+            lastSmokeTime: appData.lastSmokeTime,
+            smokedToday: parseInt(document.getElementById('smokedTodayValue')?.textContent || '0'),
+            streak: document.getElementById('smokeFreeStreak')?.textContent || '00:00:00'
+        };
+        localStorage.setItem('iqos_widget_data', JSON.stringify(widgetData));
+    } catch (e) {
+        console.error('[Widget] Sync failed', e);
+    }
+}
+
 function updateUI() {
     const now = new Date().getTime();
     const currentSmokeInterval = appData.settings.smokeIntervalMinutes * 60 * 1000;
@@ -150,6 +165,7 @@ function updateUI() {
 
     renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod);
     updateGlobalStats();
+    saveToWidgetStorage();
 }
 
 function updateStatistics(now) {

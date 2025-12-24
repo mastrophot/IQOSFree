@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IQOSFree Widget</title>
+    <style>
+        body {
+            background-color: #0f172a; /* Slate 900 */
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 16px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .timer {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 4px;
+            font-variant-numeric: tabular-nums;
+        }
+        .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8; /* Slate 400 */
+            font-weight: 600;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            width: 100%;
+        }
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-val {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        .stat-lbl {
+            font-size: 0.65rem;
+            color: #64748b; /* Slate 500 */
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        /* Open App Link Overlay */
+        .link-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <a href="./index.html" class="link-overlay"></a>
+    <div class="container">
+        <div>
+            <div class="label">До наступної</div>
+            <div id="timer" class="timer">00:00</div>
+        </div>
+        
+        <div class="stats-row">
+            <div class="stat-item">
+                <span class="stat-lbl">Сьогодні</span>
+                <span id="smoked" class="stat-val text-emerald-400">0</span>
+            </div>
+            <div class="stat-item" style="text-align: right;">
+                <span class="stat-lbl">Інтервал</span>
+                <span id="streak" class="stat-val text-cyan-400">00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateWidget() {
+            try {
+                const data = JSON.parse(localStorage.getItem('iqos_widget_data'));
+                if (!data) return;
+
+                document.getElementById('smoked').textContent = data.smokedToday;
+                document.getElementById('streak').textContent = data.streak;
+
+                if (data.lastSmokeTime) {
+                    // Calculate timer (simplified logic, assuming 60 min interval default if not in storage, but app logic is complex)
+                    // Actually, the widget is simplified. We can't replicate full logic easily without code duplication.
+                    // For now, let's just show "Time Since Last Smoke" or replicated countdown if we had the interval.
+                    // App logic calculates "Next Smoke".
+                    // Let's just switch to "Time Since Last" which is easier, OR try to read the full appData if possible.
+                    // Ideally we saved the 'targetTime' or 'remainingTime' but we saved 'lastSmokeTime'.
+                    
+                    // Let's assume standard 1 hour interval for the widget visual or just show time elapsed since last smoke?
+                    // The user wants "Timer". The main app counts DOWN.
+                    // To count down we need the interval settings. 
+                    // Let's rely on reading the full settings if available or just fallback.
+                    
+                    // IMPROVEMENT: Read full appData if available? 
+                    // But appData is not in localStorage in simple format, it's in Firestore mostly. 
+                    // However, 'iqos_widget_data' is what we have.
+                    // Let's ask the `app.js` to save the *TARGET* time (next smoke time) to make it easy.
+                    
+                    // Re-reading implementation plan: "Time Since Last". 
+                    // Okay, let's show Time Since Last (Count UP) as a fallback, is safer.
+                    
+                    const now = Date.now();
+                    const diff = now - data.lastSmokeTime;
+                    
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    
+                    // Format
+                    const h = String(hours).padStart(2, '0');
+                    const m = String(minutes).padStart(2, '0');
+                    const s = String(seconds).padStart(2, '0');
+                    
+                    document.getElementById('timer').textContent = `${h}:${m}:${s}`;
+                    document.querySelector('.label').textContent = "Час без сигарет"; // Change label to match logic
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        setInterval(updateWidget, 1000);
+        updateWidget();
+    </script>
+</body>
+</html>
