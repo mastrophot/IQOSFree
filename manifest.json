@@ -17,20 +17,5 @@
       "type": "image/png",
       "sizes": "512x512"
     }
-
-  ],
-  "shortcuts": [
-    {
-      "name": "Я покурив",
-      "short_name": "Покурити",
-      "url": "./index.html?action=smoke",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Статистика",
-      "short_name": "Статистика",
-      "url": "./index.html?action=stats",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
-    }
   ]
 }
