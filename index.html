@@ -59,18 +59,18 @@
     <!-- Main App Container -->
     <div id="app" class="hidden w-full max-w-lg mx-auto text-center relative z-10 pb-6">
         
-        <div id="main-view" class="flex flex-col gap-5 fade-in">
+        <div id="main-view" class="flex flex-col gap-3 fade-in">
             
             <!-- Header -->
-            <div class="mt-2 flex items-center justify-between">
+            <div class="mt-1 flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight text-white drop-shadow-sm text-left">
+                    <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
                         Кидай Курити
                     </h1>
-                    <p id="userStatusDisplay" class="text-xs text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
+                    <p id="userStatusDisplay" class="text-[10px] text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
                 </div>
-                 <button id="openSettingsButton" class="p-3 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors backdrop-blur-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <button id="openSettingsButton" class="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors backdrop-blur-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
@@ -78,16 +78,16 @@
             </div>
             
             <!-- Timer Hero Section -->
-            <div class="py-6 relative">
-                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-56 h-56 bg-emerald-500/5 rounded-full blur-[80px] -z-10 animate-pulse-slow"></div>
+            <div class="py-2 relative">
+                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-emerald-500/5 rounded-full blur-[60px] -z-10 animate-pulse-slow"></div>
                 <div id="timer" class="timer-text text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-colors duration-500">00:00</div>
-                <p id="statusMessage" class="status-text text-slate-500 mt-1">Час до наступної</p>
+                <p id="statusMessage" class="status-text text-slate-500 mt-0">Час до наступної</p>
             </div>
 
             <!-- Primary Action Button -->
-            <button id="smokeButton" class="group relative w-full bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 disabled:from-slate-800 disabled:to-slate-900 disabled:text-slate-600 text-white font-black py-6 px-6 rounded-3xl text-xl transition-all duration-300 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_60px_-15px_rgba(16,185,129,0.6)] transform hover:-translate-y-1 active:scale-[0.98] disabled:hover:translate-y-0 disabled:shadow-none overflow-hidden delay-100 fade-in">
+            <button id="smokeButton" class="group relative w-full bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 disabled:from-slate-800 disabled:to-slate-900 disabled:text-slate-600 text-white font-black py-4 px-6 rounded-2xl text-lg transition-all duration-300 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_60px_-15px_rgba(16,185,129,0.6)] transform hover:-translate-y-1 active:scale-[0.98] disabled:hover:translate-y-0 disabled:shadow-none overflow-hidden delay-100 fade-in">
                 <span class="relative z-10 flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
                     </svg>
@@ -97,59 +97,59 @@
             </button>
 
             <!-- Bento Grid Stats -->
-            <div class="grid grid-cols-2 gap-3 delay-200 fade-in">
+            <div class="grid grid-cols-2 gap-2 delay-200 fade-in">
                 <!-- Smoked Today -->
-                <div class="glass-panel p-4 rounded-3xl text-left flex flex-col justify-between h-28">
+                <div class="glass-panel p-3 rounded-2xl text-left flex flex-col justify-between h-20">
                     <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         Сьогодні
                     </div>
                     <div>
-                        <p class="text-2xl font-bold text-white" id="smokedTodayValue">0</p>
-                        <p class="text-slate-500 text-[10px] mt-0.5" id="smokedTodayPlanned">...</p>
+                        <p class="text-xl font-bold text-white" id="smokedTodayValue">0</p>
+                        <p class="text-slate-500 text-[9px] mt-0.5" id="smokedTodayPlanned">...</p>
                     </div>
                 </div>
 
                 <!-- Spent Today -->
-                <div class="glass-panel p-4 rounded-3xl text-left flex flex-col justify-between h-28">
+                <div class="glass-panel p-3 rounded-2xl text-left flex flex-col justify-between h-20">
                     <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Витрати
                     </div>
                     <div>
-                        <p class="text-2xl font-bold text-white" id="spentTodayValue">0</p>
-                        <p class="text-slate-500 text-[10px] mt-0.5" id="spentTodayPlanned">...</p>
+                        <p class="text-xl font-bold text-white" id="spentTodayValue">0</p>
+                        <p class="text-slate-500 text-[9px] mt-0.5" id="spentTodayPlanned">...</p>
                     </div>
                 </div>
 
                 <!-- Saved (Wide) -->
-                <div class="glass-panel p-4 rounded-3xl text-left col-span-2 flex items-center justify-between">
+                <div class="glass-panel p-3 rounded-2xl text-left col-span-2 flex items-center justify-between">
                      <div>
                         <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Зекономлено</div>
-                        <p class="text-xl font-black text-emerald-400 mt-0.5" id="totalMoneySaved">0.00 грн</p>
+                        <p class="text-lg font-black text-emerald-400 mt-0.5" id="totalMoneySaved">0.00 грн</p>
                     </div>
                     <div class="text-right">
                         <div class="text-slate-600 text-[10px] font-bold uppercase tracking-wider">Якби не кидав</div>
-                        <p class="text-sm font-semibold text-slate-400 mt-0.5" id="expectedTotalMoney">0.00 грн</p>
+                        <p class="text-xs font-semibold text-slate-400 mt-0.5" id="expectedTotalMoney">0.00 грн</p>
                     </div>
                 </div>
             </div>
 
             <!-- Streaks & Emergency Grid -->
-             <div class="grid grid-cols-2 gap-3 delay-300 fade-in">
-                 <div class="glass-panel p-4 rounded-3xl text-left">
+             <div class="grid grid-cols-2 gap-2 delay-300 fade-in">
+                 <div class="glass-panel p-3 rounded-2xl text-left">
                      <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Інтервал</div>
                      <p class="text-lg font-bold text-cyan-400" id="smokeFreeStreak">0</p>
-                     <p class="text-[10px] text-slate-500 mt-0.5">Рекорд: <span id="longestSmokeFreeStreak" class="text-slate-300">0</span></p>
+                     <p class="text-[9px] text-slate-500 mt-0.5">Рекорд: <span id="longestSmokeFreeStreak" class="text-slate-300">0</span></p>
                  </div>
 
                  <!-- Emergency Button: Made more distinct with border and text color -->
-                 <button id="emergencySmokeButton" class="p-4 rounded-3xl text-left bg-red-900/10 border border-red-500/20 hover:bg-red-900/20 hover:border-red-500/40 transition-all group active:scale-95">
+                 <button id="emergencySmokeButton" class="p-3 rounded-2xl text-left bg-red-900/10 border border-red-500/20 hover:bg-red-900/20 hover:border-red-500/40 transition-all group active:scale-95">
                      <div class="text-red-400/80 group-hover:text-red-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1 transition-colors">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                          Надзв.
                      </div>
-                     <p class="text-red-100 text-sm font-medium leading-tight">Позачергова сигарета</p>
+                     <p class="text-red-100 text-xs font-medium leading-tight">Позачергова сигарета</p>
                  </button>
              </div>
 
