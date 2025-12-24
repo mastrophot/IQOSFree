@@ -493,4 +493,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     setInterval(updateUI, 1000);
+
+    // Check for App Shortcuts
+    handleShortcuts();
 });
+
+function handleShortcuts() {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+
+    if (action === 'smoke') {
+        console.log("Shortcut: Smoke");
+        // We need to wait for data load, but handleSmoke handles it via appData.
+        // Let's retry a few times if appData isn't ready, or just trigger it.
+        // Since we are inside DOMContentLoaded, and Auth is async, we might need to wait.
+        // Actually, 'handleSmoke' just updates appData. If appData is empty/default, it works but might be overwritten by loadData.
+        // Ideally we wait for loadData.
+        const checkLoaded = setInterval(() => {
+             if (appData && appData.lastSmokeTime !== undefined && isInitialAuthCheckComplete) {
+                 clearInterval(checkLoaded);
+                 handleSmoke('regular');
+                 // Clear search params to prevent double triggers on reload
+                 window.history.replaceState({}, document.title, window.location.pathname);
+                 // Feedback
+                 if (smokeButton) {
+                     smokeButton.classList.add('ring-4', 'ring-emerald-400');
+                     setTimeout(() => smokeButton.classList.remove('ring-4', 'ring-emerald-400'), 500);
+                 }
+             }
+        }, 200);
+    } else if (action === 'stats') {
+        console.log("Shortcut: Stats");
+        const checkLoaded = setInterval(() => {
+             if (statisticsSection) {
+                 clearInterval(checkLoaded);
+                 statisticsSection.scrollIntoView({ behavior: 'smooth' });
+                 window.history.replaceState({}, document.title, window.location.pathname);
+             }
+        }, 200);
+    }
+}
