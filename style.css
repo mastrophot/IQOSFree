@@ -248,8 +248,19 @@ body {
 
 /* Mythical Oak Stage 5 */
 .tree-stage-5 {
-    transform: scale(1.15) translateY(-10px) !important;
+    /* Stage 5 gets a bigger base scale + the breathing effect */
+    --base-scale: 1.15;
+    transform: scale(var(--base-scale)) translateY(-10px) !important;
     --lvl-filter: drop-shadow(0 0 30px oklch(75% 0.15 85 / 40%)) saturate(1.5) !important;
+}
+
+.tree-breathing {
+    animation: treeBreathing 4s ease-in-out infinite;
+}
+
+@keyframes treeBreathing {
+    0%, 100% { transform: scale(var(--base-scale, 1)) translateY(var(--base-translate, 0)); }
+    50% { transform: scale(calc(var(--base-scale, 1) * 1.05)) translateY(var(--base-translate, 0)); }
 }
 
 .tree-sick {

@@ -48,7 +48,7 @@ let dailySmokingChartSection, dailySmokeChartCanvas;
 let statisticsSection, smokeChartCanvas;
 let totalSmokesAllTimeEl, avgSmokesPerDayEl;
 let statsTabs, statsModeBtns;
-let treeContainerEl, toxicCloudEl, healthValueEl; // New Life Tree Elements 2025
+let treeContainerEl, toxicCloudEl, healthValueEl, growthStageEl; // New Life Tree Elements 2025
 let insightsSection, peakHourValueEl, activityHeatmapEl, heatmapLabelsEl;
 let currentChartPeriod = 'day';
 let currentChartMode = 'sticks';
@@ -416,18 +416,20 @@ function updateAvatar() { // Progressive Life Tree Logic 2025
     // 3. Evolution Stage (Based on Evolution Points / Experience)
     const evolutionDays = appData.evolutionPointsMs / (1000 * 60 * 60 * 24);
     
-    let stage = 1; // Sprout (0-1 days)
-    if (evolutionDays >= 14) stage = 5; // Mythical Oak (14+ days)
-    else if (evolutionDays >= 7) stage = 4; // Large Tree (7-14 days)
-    else if (evolutionDays >= 3) stage = 3; // Medium Tree (3-7 days)
-    else if (evolutionDays >= 1) stage = 2; // Sapling (1-3 days)
+    let stage = 1;
+    let stageTitle = "Паросток";
+    if (evolutionDays >= 14) { stage = 5; stageTitle = "Міфічний Дуб"; }
+    else if (evolutionDays >= 7) { stage = 4; stageTitle = "Велике Дерево"; }
+    else if (evolutionDays >= 3) { stage = 3; stageTitle = "Середнє Дерево"; }
+    else if (evolutionDays >= 1) { stage = 2; stageTitle = "Саджанець"; }
 
     // 4. Render Tree Stage & Health Levels
     renderLifeTree(stage, appData.healthIntegrity);
 
     // 5. Update Labels
     const health = Math.round(appData.healthIntegrity);
-    healthValueEl.textContent = `Дерево Життя: ${health}%`;
+    healthValueEl.textContent = `Здоров'я: ${health}%`;
+    if (growthStageEl) growthStageEl.textContent = `Стадія: ${stage} / 5 (${stageTitle})`;
     
     healthValueEl.classList.remove('text-primary-glow', 'text-warning', 'text-error', 'border-emerald-500/20', 'border-warning/20', 'border-error/20');
     if (health > 70) {
@@ -508,8 +510,8 @@ async function renderLifeTree(stage, health) {
     if (stage === 5) img.classList.add('tree-stage-5');
     if (healthLevel < 5) img.classList.add('tree-sick');
 
-    const scale = 0.95 + (health / 100) * 0.1;
-    img.style.transform = `scale(${scale})`;
+    // Breathing effect via CSS Class
+    img.classList.add('tree-breathing');
 }
 
 // Removing unused helper function logic.
@@ -761,7 +763,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     treeContainerEl = document.getElementById('treeContainer');
     toxicCloudEl = document.getElementById('toxicCloud');
     healthValueEl = document.getElementById('healthValue');
-    smokeButton = document.getElementById('smokeButton');
+    growthStageEl = document.getElementById('growthStage');
+    smokeFreeStreakEl = document.getElementById('smokeFreeStreak');
     emergencySmokeButton = document.getElementById('emergencySmokeButton');
     
     smokedTodayValueEl = document.getElementById('smokedTodayValue');
