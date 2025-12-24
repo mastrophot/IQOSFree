@@ -23,7 +23,8 @@ let appData = {
         smokeIntervalMinutes: 60, 
         desiredDailySticks: 10 
     },
-    longestSmokeFreeStreakHours: 0 
+    longestSmokeFreeStreakHours: 0,
+    appStartDate: Date.now() 
 };
 
 let eventListenersAttached = false;
@@ -40,8 +41,10 @@ let packPriceInput, packSizeInput, oldHabitInput, smokeIntervalMinutesInput, old
 let dailySmokingChartSection, dailySmokeChartCanvas;
 let statisticsSection, smokeChartCanvas;
 let totalSmokesAllTimeEl, avgSmokesPerDayEl;
-let statsTabs;
+let statsTabs, statsModeBtns;
+let insightsSection, peakHourValueEl, activityHeatmapEl;
 let currentChartPeriod = 'day';
+let currentChartMode = 'sticks';
 let confirmModal, modalText, confirmYes, confirmNo;
 
 function showConfirm(text, onConfirm) {
@@ -151,7 +154,7 @@ function updateUI() {
     emergencySmokeButton.disabled = false;
     updateStatistics(now);
 
-    renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod);
+    renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
     updateGlobalStats();
 }
 
@@ -205,7 +208,57 @@ function updateStatistics(now) {
     smokeFreeStreakEl.textContent = formatMinutesToReadable(streakMinutes);
 
     const expectedMoneyTodayBasedOnOldHabit = oldHabit * pricePerCig; 
+
     expectedTotalMoneyEl.textContent = `${expectedMoneyTodayBasedOnOldHabit.toFixed(2)} грн`;
+
+    updateInsights();
+}
+
+function updateInsights() {
+    // Only show insights for 'Day' period
+    if (currentChartPeriod !== 'day') {
+        insightsSection.classList.add('hidden');
+        return;
+    }
+    insightsSection.classList.remove('hidden');
+
+    // Calculate Heatmap (24 hours)
+    const hours = new Array(24).fill(0);
+    // Use last 30 days history for better insights
+    const recentHistory = appData.smokeHistory.filter(s => s.timestamp > (Date.now() - 30 * 24 * 60 * 60 * 1000));
+    
+    recentHistory.forEach(s => {
+        const h = new Date(s.timestamp).getHours();
+        hours[h]++;
+    });
+
+    const maxVal = Math.max(...hours, 1);
+    
+    // Find peak window (3-hour sliding window)
+    let maxWindowSum = 0;
+    let maxWindowStart = 0;
+    for (let i = 0; i < 22; i++) {
+        const sum = hours[i] + hours[i+1] + hours[i+2];
+        if (sum > maxWindowSum) {
+            maxWindowSum = sum;
+            maxWindowStart = i;
+        }
+    }
+    
+    peakHourValueEl.textContent = `${maxWindowStart}:00 - ${maxWindowStart+3}:00`;
+    
+    // Render Heatmap
+    activityHeatmapEl.innerHTML = '';
+    hours.forEach(val => {
+        const intensity = val / maxVal;
+        const bar = document.createElement('div');
+        bar.className = 'flex-1 h-full';
+        // Color interpolation from Slate-800 to Red-500
+        // Simple opacity approach on a red background
+        bar.style.backgroundColor = `rgba(239, 68, 68, ${intensity * 0.8 + 0.1})`; // Red with opacity
+        if (intensity > 0.8) bar.classList.add('shadow-[0_0_10px_rgba(239,68,68,0.5)]', 'z-10');
+        activityHeatmapEl.appendChild(bar);
+    });
 }
 
 function updateGlobalStats() {
@@ -234,6 +287,24 @@ function handleChartTabClick(e) {
         }
     });
 
+    updateUI();
+    updateUI();
+}
+
+function handleChartModeClick(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    
+    currentChartMode = btn.dataset.mode;
+
+    statsModeBtns.forEach(b => {
+        b.classList.remove('active', 'bg-slate-700', 'text-white', 'shadow-sm');
+        b.classList.add('text-slate-400');
+        if (b === btn) {
+            b.classList.add('active', 'bg-slate-700', 'text-white', 'shadow-sm');
+            b.classList.remove('text-slate-400');
+        }
+    });
     updateUI();
 }
 
@@ -409,9 +480,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     smokeChartCanvas = document.getElementById('smokeChart');
     totalSmokesAllTimeEl = document.getElementById('totalSmokesAllTime');
     avgSmokesPerDayEl = document.getElementById('avgSmokesPerDay');
+    avgSmokesPerDayEl = document.getElementById('avgSmokesPerDay');
     statsTabs = document.querySelectorAll('.stats-tab');
+    statsModeBtns = document.querySelectorAll('.mode-btn');
+    insightsSection = document.getElementById('insightsSection');
+    peakHourValueEl = document.getElementById('peakHourValue');
+    activityHeatmapEl = document.getElementById('activityHeatmap');
     
     statsTabs.forEach(tab => tab.addEventListener('click', handleChartTabClick));
+    statsModeBtns.forEach(btn => btn.addEventListener('click', handleChartModeClick));
 
     confirmModal = document.getElementById('confirmModal');
     modalText = document.getElementById('modalText');
