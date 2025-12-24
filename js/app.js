@@ -45,7 +45,7 @@ let dailySmokingChartSection, dailySmokeChartCanvas;
 let statisticsSection, smokeChartCanvas;
 let totalSmokesAllTimeEl, avgSmokesPerDayEl;
 let statsTabs, statsModeBtns;
-let bioCoreEl, integrityBarEl; // New Elements
+let healthRingEl, healthValueEl; // New Health Ring Elements
 let insightsSection, peakHourValueEl, activityHeatmapEl, heatmapLabelsEl;
 let currentChartPeriod = 'day';
 let currentChartMode = 'sticks';
@@ -348,8 +348,10 @@ function updateInsights() {
     }
 }
 
-function updateAvatar() { // New Bio-Core Visuals
-    if (!bioCoreEl || !integrityBarEl) return;
+
+
+function updateAvatar() { // Health Ring Logic
+    if (!healthRingEl || !healthValueEl) return;
     
     // 1. Regenerate Health (1% per hour)
     const now = Date.now();
@@ -357,29 +359,49 @@ function updateAvatar() { // New Bio-Core Visuals
     const diffHours = (now - lastUpdate) / (1000 * 60 * 60);
     
     if (diffHours > 0) {
-        const regenAmount = diffHours * 1; // 1% per hour
-        appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
-        appData.lastIntegrityUpdate = now;
-        // Optimization: Save occasionally or on smoke? 
-        // For accurate tracking we rely on periodic saving or save on exit/smoke.
-        // To avoid spamming saves in loop, we rely on local appData state and save on events.
-        // However, if user reloads, we lose fractional regeneration since last save?
-        // Let's assume 'saveData' is called on major events, slight precision loss is fine.
+        // Regen 1% per hour
+        const regenAmount = diffHours * 1; 
+        if (appData.healthIntegrity < 100) {
+            appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
+            appData.lastIntegrityUpdate = now;
+             // Optimization: We don't save constantly here to avoid write spam, 
+             // but 'handleSmoke' or 'updateGlobalStats' calls might trigger saves or we trust local state until next event.
+             // Ideally we should debounced save, but for now this is fine.
+        }
     }
 
-    // 2. Update Visuals
-    const integrity = appData.healthIntegrity;
+    // 2. Update Visuals (SVG Ring)
+    const integrity = Math.floor(appData.healthIntegrity); // Show integer
+    const radius = 45;
+    const circumference = 2 * Math.PI * radius; // ~282.7
     
-    // Classes
-    bioCoreEl.classList.remove('so-zen', 'so-fine', 'so-warn', 'so-crit');
-    if (integrity >= 80) bioCoreEl.classList.add('so-zen');
-    else if (integrity >= 50) bioCoreEl.classList.add('so-fine');
-    else if (integrity >= 20) bioCoreEl.classList.add('so-warn');
-    else bioCoreEl.classList.add('so-crit');
+    // Calculate offset
+    // offset = circumference * (1 - percentage)
+    const offset = circumference * (1 - (integrity / 100));
     
-    // Bar
-    integrityBarEl.style.width = `${integrity}%`;
-    integrityBarEl.style.backgroundColor = integrity < 20 ? '#ef4444' : '#10b981';
+    healthRingEl.style.strokeDasharray = `${circumference} ${circumference}`;
+    healthRingEl.style.strokeDashoffset = offset;
+    
+    // Colors
+    healthRingEl.classList.remove('stroke-emerald-500', 'stroke-amber-500', 'stroke-red-600');
+    healthValueEl.classList.remove('text-emerald-400', 'text-amber-400', 'text-red-500', 'border-emerald-500/20', 'border-amber-500/20', 'border-red-500/20');
+
+    if (integrity >= 50) {
+        healthRingEl.classList.add('stroke-emerald-500');
+        healthValueEl.classList.add('text-emerald-400', 'border-emerald-500/20');
+        // Add glow effect?
+        healthRingEl.style.filter = 'drop-shadow(0 0 2px rgba(16, 185, 129, 0.5))';
+    } else if (integrity >= 20) {
+        healthRingEl.classList.add('stroke-amber-500');
+        healthValueEl.classList.add('text-amber-400', 'border-amber-500/20');
+        healthRingEl.style.filter = 'drop-shadow(0 0 2px rgba(245, 158, 11, 0.5))';
+    } else {
+        healthRingEl.classList.add('stroke-red-600');
+        healthValueEl.classList.add('text-red-500', 'border-red-500/20');
+        healthRingEl.style.filter = 'drop-shadow(0 0 4px rgba(220, 38, 38, 0.8))';
+    }
+
+    healthValueEl.textContent = `Health: ${integrity}%`;
 }
 
 function updateGlobalStats() {
@@ -573,8 +595,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingsView = document.getElementById('settings-view');
     timerEl = document.getElementById('timer');
     statusMessageEl = document.getElementById('statusMessage');
-    bioCoreEl = document.getElementById('bioCore'); // New
-    integrityBarEl = document.getElementById('integrityBar'); // New
+    healthRingEl = document.getElementById('healthRing');
+    healthValueEl = document.getElementById('healthValue');
     smokeButton = document.getElementById('smokeButton');
     emergencySmokeButton = document.getElementById('emergencySmokeButton');
     
