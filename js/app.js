@@ -24,7 +24,7 @@ const getDefaultAppData = () => ({
         desiredDailySticks: 10 
     },
     longestSmokeFreeStreakHours: 0,
-    appStartDate: Date.now(),
+    appStartDate: new Date().setHours(0,0,0,0),
     healthIntegrity: 100,
     lastIntegrityUpdate: Date.now()
 });
@@ -109,12 +109,14 @@ async function loadData() {
 
             // Date Migration: If appStartDate is missing or history exists MUCH earlier, prefer first smoke date
             const savedStartDate = loadedData.appStartDate || 0;
-            const firstSmokeDate = appData.smokeHistory.length > 0 ? appData.smokeHistory[0].timestamp : Date.now();
+            const firstSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[0].timestamp : Date.now();
+            const startOfDayOfFirstSmoke = new Date(firstSmokeTime).setHours(0,0,0,0);
             
             if (savedStartDate === 0) {
-                appData.appStartDate = firstSmokeDate;
+                appData.appStartDate = startOfDayOfFirstSmoke;
             } else {
-                appData.appStartDate = Math.min(savedStartDate, firstSmokeDate);
+                // Ensure the saved date is also normalized to start of day for consistency
+                appData.appStartDate = new Date(Math.min(savedStartDate, startOfDayOfFirstSmoke)).setHours(0,0,0,0);
             }
             
             appData.longestSmokeFreeStreakHours = loadedData.longestSmokeFreeStreakHours || 0;
