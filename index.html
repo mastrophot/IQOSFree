@@ -153,16 +153,28 @@
                  </button>
              </div>
 
-             <!-- Statistics Card -->
-             <div id="statisticsSection" class="glass-panel p-4 rounded-3xl delay-300 fade-in flex flex-col gap-4">
-                 
+             <!-- Statistics Section -->
+             <div id="statisticsSection" class="glass-panel p-5 rounded-3xl delay-400 fade-in flex flex-col gap-4">
                  <div class="flex items-center justify-between">
-                     <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Статистика</h2>
-                     <!-- Tab Switcher -->
-                     <div class="flex bg-slate-800/50 p-1 rounded-xl">
-                         <button data-period="day" class="stats-tab active flex-1 py-1 px-3 rounded-lg text-[10px] font-bold text-white bg-slate-700 shadow-sm transition-all">День</button>
-                         <button data-period="week" class="stats-tab flex-1 py-1 px-3 rounded-lg text-[10px] font-medium text-slate-400 hover:text-white transition-all">Тиждень</button>
-                         <button data-period="all" class="stats-tab flex-1 py-1 px-3 rounded-lg text-[10px] font-medium text-slate-400 hover:text-white transition-all">Всі</button>
+                     <h2 class="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" /></svg>
+                         Статистика
+                     </h2>
+                     
+                     <!-- View Toggle & Tabs -->
+                     <div class="flex items-center gap-2">
+                         <!-- Mode Toggle -->
+                         <div class="flex bg-slate-800/50 rounded-lg p-0.5" id="statsModeToggle">
+                             <button data-mode="sticks" class="mode-btn active px-2 py-1 rounded-md text-[10px] font-bold text-white bg-slate-700 shadow-sm transition-all">🚬</button>
+                             <button data-mode="money" class="mode-btn px-2 py-1 rounded-md text-[10px] font-bold text-slate-400 hover:text-white transition-all">💰</button>
+                         </div>
+                         
+                         <!-- Period Tabs -->
+                         <div class="flex bg-slate-800/50 rounded-lg p-0.5">
+                             <button data-period="day" class="stats-tab active px-3 py-1 rounded-md text-[10px] font-bold text-white bg-slate-700 shadow-sm transition-all">День</button>
+                             <button data-period="week" class="stats-tab px-3 py-1 rounded-md text-[10px] font-medium text-slate-400 hover:text-white transition-all">Тиж</button>
+                             <button data-period="all" class="stats-tab px-3 py-1 rounded-md text-[10px] font-medium text-slate-400 hover:text-white transition-all">Всі</button>
+                         </div>
                      </div>
                  </div>
 
@@ -172,8 +184,20 @@
                      <div class="text-slate-400">Середнє: <span id="avgSmokesPerDay" class="text-white font-bold">0</span></div>
                  </div>
 
-                 <div class="chart-container h-48 w-full mt-2">
-                     <canvas id="smokeChart" class="w-full h-full"></canvas>
+                 <div class="chart-container h-48 w-full relative">
+                     <canvas id="smokeChart"></canvas>
+                 </div>
+                 
+                 <!-- Insights / Heatmap -->
+                 <div id="insightsSection" class="mt-2 pt-4 border-t border-slate-700/50 hidden">
+                     <div class="flex items-center justify-between mb-2">
+                         <span class="text-[10px] font-bold uppercase text-slate-500">Пікова активність</span>
+                         <span id="peakHourValue" class="text-xs font-bold text-emerald-400">...</span>
+                     </div>
+                     <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden flex" id="activityHeatmap"></div>
+                     <div class="flex justify-between text-[8px] text-slate-600 mt-1 font-mono">
+                         <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:59</span>
+                     </div>
                  </div>
              </div>
 
