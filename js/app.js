@@ -47,7 +47,7 @@ let dailySmokingChartSection, dailySmokeChartCanvas;
 let statisticsSection, smokeChartCanvas;
 let totalSmokesAllTimeEl, avgSmokesPerDayEl;
 let statsTabs, statsModeBtns;
-let healthRingEl, healthValueEl; // New Health Ring Elements
+let treeContainerEl, toxicCloudEl, healthValueEl; // New Life Tree Elements 2025
 let insightsSection, peakHourValueEl, activityHeatmapEl, heatmapLabelsEl;
 let currentChartPeriod = 'day';
 let currentChartMode = 'sticks';
@@ -377,65 +377,113 @@ function updateInsights() {
 
 
 
-function updateAvatar() { // Health Ring Logic
-    if (!healthRingEl || !healthValueEl) return;
+function updateAvatar() { // Life Tree Logic 2025
+    if (!treeContainerEl || !healthValueEl) return;
     
-    // Safety Fallback for NaN - Force Number casting
+    // Safety Fallback for NaN
     appData.healthIntegrity = Number(appData.healthIntegrity);
     appData.lastIntegrityUpdate = Number(appData.lastIntegrityUpdate);
     
     if (isNaN(appData.healthIntegrity)) appData.healthIntegrity = 100;
     if (isNaN(appData.lastIntegrityUpdate)) appData.lastIntegrityUpdate = Date.now();
-    
+
     // 1. Regenerate Health (1% per hour)
     const now = Date.now();
     const lastUpdate = appData.lastIntegrityUpdate || now;
     const diffHours = (now - lastUpdate) / (1000 * 60 * 60);
     
     if (diffHours > 0) {
-        // Regen 1% per hour
         const regenAmount = diffHours * 1; 
         if (appData.healthIntegrity < 100) {
             appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
             appData.lastIntegrityUpdate = now;
-             // Optimization: We don't save constantly here to avoid write spam, 
-             // but 'handleSmoke' or 'updateGlobalStats' calls might trigger saves or we trust local state until next event.
-             // Ideally we should debounced save, but for now this is fine.
         }
     }
 
-    // 2. Update Visuals (SVG Ring)
-    const integrity = Math.floor(appData.healthIntegrity); // Show integer
-    const radius = 45;
-    const circumference = 2 * Math.PI * radius; // ~282.7
+    // 2. Evolution Stage (Based on Current Streak)
+    // We use lastSmokeTime to determine the "age" of the current tree
+    const streakMs = appData.lastSmokeTime ? (now - appData.lastSmokeTime) : (now - appData.appStartDate);
+    const streakDays = streakMs / (1000 * 60 * 60 * 24);
     
-    // Calculate offset
-    // offset = circumference * (1 - percentage)
-    const offset = circumference * (1 - (integrity / 100));
-    
-    healthRingEl.style.strokeDasharray = `${circumference} ${circumference}`;
-    healthRingEl.style.strokeDashoffset = offset;
-    
-    // Colors
-    healthRingEl.classList.remove('stroke-emerald-500', 'stroke-amber-500', 'stroke-red-600');
-    healthValueEl.classList.remove('text-emerald-400', 'text-amber-400', 'text-red-500', 'border-emerald-500/20', 'border-amber-500/20', 'border-red-500/20');
+    let stage = 1; // Sprout
+    if (streakDays >= 7) stage = 4; // Oak
+    else if (streakDays >= 3) stage = 3; // Tree
+    else if (streakDays >= 1) stage = 2; // Sapling
 
-    if (integrity >= 50) {
-        healthRingEl.classList.add('stroke-emerald-500');
-        healthValueEl.classList.add('text-emerald-400', 'border-emerald-500/20');
-        // Add glow effect?
-        healthRingEl.style.filter = 'drop-shadow(0 0 2px rgba(16, 185, 129, 0.5))';
-    } else if (integrity >= 20) {
-        healthRingEl.classList.add('stroke-amber-500');
-        healthValueEl.classList.add('text-amber-400', 'border-amber-500/20');
-        healthRingEl.style.filter = 'drop-shadow(0 0 2px rgba(245, 158, 11, 0.5))';
+    // 3. Render Tree SVG
+    renderLifeTree(stage, appData.healthIntegrity);
+
+    // 4. Update Labels
+    const health = Math.round(appData.healthIntegrity);
+    healthValueEl.textContent = `Дерево Життя: ${health}%`;
+    
+    // Dynamic styling for health label
+    healthValueEl.classList.remove('text-primary-glow', 'text-warning', 'text-error', 'border-emerald-500/20', 'border-warning/20', 'border-error/20');
+    if (health > 70) {
+        healthValueEl.classList.add('text-primary-glow', 'border-emerald-500/20');
+    } else if (health > 30) {
+        healthValueEl.classList.add('text-warning', 'border-warning/20');
     } else {
-        healthRingEl.classList.add('stroke-red-600');
-        healthValueEl.classList.add('text-red-500', 'border-red-500/20');
-        healthRingEl.style.filter = 'drop-shadow(0 0 4px rgba(220, 38, 38, 0.8))';
+        healthValueEl.classList.add('text-error', 'border-error/20');
+    }
+}
+
+function renderLifeTree(stage, health) {
+    const container = treeContainerEl;
+    let svg = container.querySelector('svg');
+    
+    if (!svg) {
+        svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 200 200");
+        svg.setAttribute("class", "w-full h-full relative z-0");
+        container.appendChild(svg);
     }
 
-    healthValueEl.textContent = `Health: ${integrity}%`;
+    // Dynamic Trunk based on stage
+    const trunkWidth = 10 + (stage * 5);
+    const trunkHeight = 40 + (stage * 15);
+    const trunkPath = `M ${100 - trunkWidth/2} 180 L ${100 + trunkWidth/2} 180 L ${100 + trunkWidth/4} ${180 - trunkHeight} L ${100 - trunkWidth/4} ${180 - trunkHeight} Z`;
+
+    const leafCount = 20; // 5% each
+    const visibleLeaves = Math.floor(health / 5);
+    
+    // Use the Design Tokens for colors
+    let innerHTML = `
+        <defs>
+            <radialGradient id="leafGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" style="stop-color:var(--color-primary);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:oklch(60% 0.15 165);stop-opacity:1" />
+            </radialGradient>
+        </defs>
+        <path class="tree-trunk" d="${trunkPath}" />
+    `;
+
+    // Generate leaves in a circular crown
+    const radius = 25 + (stage * 12);
+    const centerX = 100;
+    const centerY = 180 - trunkHeight;
+
+    for (let i = 0; i < leafCount; i++) {
+        const angle = (i / leafCount) * Math.PI * 2;
+        // Add a bit of randomness to position for organic look but keep it deterministic-ish
+        const seed = i * 1.5;
+        const x = centerX + Math.cos(angle) * (radius * (0.7 + Math.sin(seed) * 0.3));
+        const y = centerY + Math.sin(angle) * (radius * (0.7 + Math.cos(seed) * 0.3));
+        const isVisible = i < visibleLeaves;
+        const leafSize = 10 + (stage * 2);
+        
+        const opacity = isVisible ? 1 : 0;
+        const scale = isVisible ? 1 : 0.3;
+        const fill = health < 40 ? 'var(--color-warning)' : 'url(#leafGrad)';
+
+        innerHTML += `
+            <circle class="tree-leaf" cx="${x}" cy="${y}" r="${leafSize}" 
+                    fill="${fill}" 
+                    style="opacity:${opacity}; transform: scale(${scale});" />
+        `;
+    }
+
+    svg.innerHTML = innerHTML;
 }
 
 function updateGlobalStats() {
@@ -488,16 +536,22 @@ function handleChartModeClick(e) {
 function handleSmoke(type = 'regular') {
     console.log(`[handleSmoke] ${type} smoke button clicked!`);
     
-    // Spring Interaction Feedback 2025
-    const btn = type === 'regular' ? smokeButton : emergencySmokeButton;
-    if (btn) {
-        btn.style.transform = 'scale(0.96)';
-        btn.style.transition = 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        setTimeout(() => btn.style.transform = '', 150);
+    // Tree Feedback Logic 2025
+    if (treeContainerEl && toxicCloudEl) {
+        const isEmergency = type === 'emergency';
+        const shakeClass = isEmergency ? 'tree-shake-heavy' : 'tree-shake-light';
+        
+        treeContainerEl.classList.add(shakeClass);
+        toxicCloudEl.classList.add('active');
+        
+        setTimeout(() => {
+            treeContainerEl.classList.remove(shakeClass);
+            toxicCloudEl.classList.remove('active');
+        }, 1000);
     }
-    
-    // Integrity Deduction Logic
-    const damage = type === 'regular' ? 15 : 5;
+
+    // Integrity Deduction Logic (User custom: Emergency is HEAVIER)
+    const damage = type === 'regular' ? 10 : 25;
     appData.healthIntegrity = Math.max(0, appData.healthIntegrity - damage);
     
     appData.lastSmokeTime = new Date().getTime();
@@ -642,7 +696,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingsView = document.getElementById('settings-view');
     timerEl = document.getElementById('timer');
     statusMessageEl = document.getElementById('statusMessage');
-    healthRingEl = document.getElementById('healthRing');
+    treeContainerEl = document.getElementById('treeContainer');
+    toxicCloudEl = document.getElementById('toxicCloud');
     healthValueEl = document.getElementById('healthValue');
     smokeButton = document.getElementById('smokeButton');
     emergencySmokeButton = document.getElementById('emergencySmokeButton');
