@@ -215,50 +215,125 @@ function updateStatistics(now) {
 }
 
 function updateInsights() {
-    // Only show insights for 'Day' period
-    if (currentChartPeriod !== 'day') {
-        insightsSection.classList.add('hidden');
-        return;
-    }
     insightsSection.classList.remove('hidden');
-
-    // Calculate Heatmap (24 hours)
-    const hours = new Array(24).fill(0);
-    // Use last 30 days history for better insights
-    const recentHistory = appData.smokeHistory.filter(s => s.timestamp > (Date.now() - 30 * 24 * 60 * 60 * 1000));
     
-    recentHistory.forEach(s => {
-        const h = new Date(s.timestamp).getHours();
-        hours[h]++;
-    });
+    let labels = [];
+    let data = [];
+    let peakLabel = '';
+    let peakValueText = '';
 
-    const maxVal = Math.max(...hours, 1);
-    
-    // Find peak window (3-hour sliding window)
-    let maxWindowSum = 0;
-    let maxWindowStart = 0;
-    for (let i = 0; i < 22; i++) {
-        const sum = hours[i] + hours[i+1] + hours[i+2];
-        if (sum > maxWindowSum) {
-            maxWindowSum = sum;
-            maxWindowStart = i;
+    const now = new Date();
+
+    if (currentChartPeriod === 'day') {
+        // Day Logic (Hourly)
+        document.querySelector('#insightsSection span.uppercase').textContent = 'Пікова активність (Години)';
+        labels = ['00:00', '06:00', '12:00', '18:00', '23:59'];
+        data = new Array(24).fill(0);
+        
+        // Use last 30 days history for better hourly insights
+        const recentHistory = appData.smokeHistory.filter(s => s.timestamp > (Date.now() - 30 * 24 * 60 * 60 * 1000));
+        recentHistory.forEach(s => {
+            const h = new Date(s.timestamp).getHours();
+            data[h]++;
+        });
+
+        // Find peak 3-hour window
+        let maxWindowSum = 0;
+        let maxWindowStart = 0;
+        for (let i = 0; i < 22; i++) {
+            const sum = data[i] + data[i+1] + data[i+2];
+            if (sum > maxWindowSum) {
+                maxWindowSum = sum;
+                maxWindowStart = i;
+            }
         }
+        peakValueText = `${maxWindowStart}:00 - ${maxWindowStart+3}:00`;
+
+    } else if (currentChartPeriod === 'week') {
+        // Week Logic (Daily)
+        document.querySelector('#insightsSection span.uppercase').textContent = 'Найважчий день';
+        data = new Array(7).fill(0);
+        const dayNames = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']; 
+        labels = []; 
+
+        // Analyze last 3 months to find "Busiest Day of Week" generally
+        const recentHistory = appData.smokeHistory.filter(s => s.timestamp > (Date.now() - 90 * 24 * 60 * 60 * 1000));
+        recentHistory.forEach(s => {
+            const day = new Date(s.timestamp).getDay(); // 0 = Sun, 1 = Mon
+            data[day]++;
+        });
+
+        // Shift to start from Monday (standard in UA)
+        // JS getDay(): 0=Sun. We want Mon, Tue ... Sun.
+        // Data index: 0(Sun), 1(Mon)...
+        // We want display: 1, 2, 3, 4, 5, 6, 0
+        const orderedData = [];
+        const orderedLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+        const map = [1, 2, 3, 4, 5, 6, 0];
+        
+        map.forEach(dayIdx => {
+            orderedData.push(data[dayIdx]);
+        });
+        
+        data = orderedData;
+        labels = orderedLabels; // Just show all or first/last? For 7 bars we can verify layout.
+
+        const maxVal = Math.max(...data, 0);
+        const maxIdx = data.indexOf(maxVal);
+        peakValueText = orderedLabels[maxIdx];
+
+    } else if (currentChartPeriod === 'all') {
+        // All Logic (Monthly)
+        document.querySelector('#insightsSection span.uppercase').textContent = 'Найважчий місяць';
+        data = new Array(12).fill(0);
+        const monthNames = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
+        labels = ['Січ', '', '', '', '', '', '', '', '', '', '', 'Гру'];
+
+        appData.smokeHistory.forEach(s => {
+            const m = new Date(s.timestamp).getMonth();
+            data[m]++;
+        });
+
+        const maxVal = Math.max(...data, 0);
+        const maxIdx = data.indexOf(maxVal);
+        peakValueText = monthNames[maxIdx];
     }
-    
-    peakHourValueEl.textContent = `${maxWindowStart}:00 - ${maxWindowStart+3}:00`;
-    
+
+    peakHourValueEl.textContent = peakValueText;
+
     // Render Heatmap
+    const maxValInsights = Math.max(...data, 1);
     activityHeatmapEl.innerHTML = '';
-    hours.forEach(val => {
-        const intensity = val / maxVal;
+    
+    data.forEach(val => {
+        const intensity = val / maxValInsights;
         const bar = document.createElement('div');
-        bar.className = 'flex-1 h-full';
-        // Color interpolation from Slate-800 to Red-500
-        // Simple opacity approach on a red background
-        bar.style.backgroundColor = `rgba(239, 68, 68, ${intensity * 0.8 + 0.1})`; // Red with opacity
-        if (intensity > 0.8) bar.classList.add('shadow-[0_0_10px_rgba(239,68,68,0.5)]', 'z-10');
+        bar.className = 'flex-1 h-full mx-[1px] rounded-sm'; // Added margin for separate bars
+        if (currentChartPeriod === 'day') bar.className = 'flex-1 h-full'; // Continous for time
+        
+        bar.style.backgroundColor = `rgba(239, 68, 68, ${intensity * 0.8 + 0.1})`; 
+        if (intensity >= 0.9) bar.classList.add('shadow-[0_0_10px_rgba(239,68,68,0.5)]', 'z-10', 'relative');
         activityHeatmapEl.appendChild(bar);
     });
+
+    // Render Labels
+    if (heatmapLabelsEl) {
+        heatmapLabelsEl.innerHTML = '';
+        if (currentChartPeriod === 'day') {
+             labels.forEach(l => {
+                 const s = document.createElement('span');
+                 s.textContent = l;
+                 heatmapLabelsEl.appendChild(s);
+             });
+        } else {
+             // For Week/All spread evenly
+             labels.forEach(l => {
+                 const s = document.createElement('span');
+                 s.textContent = l;
+                 heatmapLabelsEl.appendChild(s);
+             });
+        }
+    }
 }
 
 function updateGlobalStats() {
@@ -486,6 +561,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     insightsSection = document.getElementById('insightsSection');
     peakHourValueEl = document.getElementById('peakHourValue');
     activityHeatmapEl = document.getElementById('activityHeatmap');
+    heatmapLabelsEl = document.getElementById('heatmapLabels');
     
     statsTabs.forEach(tab => tab.addEventListener('click', handleChartTabClick));
     statsModeBtns.forEach(btn => btn.addEventListener('click', handleChartModeClick));
