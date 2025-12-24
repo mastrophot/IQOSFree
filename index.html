@@ -146,27 +146,35 @@
                  </button>
              </div>
 
-             <!-- Chart Details -->
-             <details id="dailySmokingChartSection" class="glass-panel rounded-3xl overflow-hidden group delay-300 fade-in">
-                 <summary class="p-5 text-xs font-bold text-slate-400 uppercase tracking-wider cursor-pointer list-none flex items-center justify-between hover:bg-white/5 transition-colors">
-                    <span class="flex items-center gap-2">Статистика дня</span>
-                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 group-open:rotate-180 transition-transform text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                 </summary>
-                 <div class="p-5 pt-0 h-48 w-full">
-                     <canvas id="dailySmokeChart" class="w-full h-full"></canvas>
+             <!-- Statistics Card -->
+             <div id="statisticsSection" class="glass-panel p-4 rounded-3xl delay-300 fade-in flex flex-col gap-4">
+                 
+                 <div class="flex items-center justify-between">
+                     <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Статистика</h2>
+                     <!-- Tab Switcher -->
+                     <div class="flex bg-slate-800/50 p-1 rounded-xl">
+                         <button data-period="day" class="stats-tab active flex-1 py-1 px-3 rounded-lg text-[10px] font-bold text-white bg-slate-700 shadow-sm transition-all">День</button>
+                         <button data-period="week" class="stats-tab flex-1 py-1 px-3 rounded-lg text-[10px] font-medium text-slate-400 hover:text-white transition-all">Тиждень</button>
+                         <button data-period="all" class="stats-tab flex-1 py-1 px-3 rounded-lg text-[10px] font-medium text-slate-400 hover:text-white transition-all">Всі</button>
+                     </div>
                  </div>
-             </details>
+
+                 <!-- General Stats Summary -->
+                 <div class="flex justify-between items-center text-[10px] px-1">
+                     <div class="text-slate-400">Всього: <span id="totalSmokesAllTime" class="text-white font-bold">0</span></div>
+                     <div class="text-slate-400">Середнє: <span id="avgSmokesPerDay" class="text-white font-bold">0</span></div>
+                 </div>
+
+                 <div class="chart-container h-48 w-full mt-2">
+                     <canvas id="smokeChart" class="w-full h-full"></canvas>
+                 </div>
+             </div>
 
              <!-- Footer / Auth -->
              <div class="mt-4 mb-20">
                 <button id="signInGoogleButton" class="w-full glass-panel py-4 px-6 rounded-2xl text-slate-300 font-medium hover:bg-white/5 transition flex items-center justify-center gap-3">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-5 h-5 opacity-80">
                     <span id="signInText">Увійти через Google</span>
-                </button>
-                <button id="signOutButton" class="w-full text-slate-500 text-sm font-medium hover:text-slate-300 transition hidden py-2">
-                    Вийти з акаунту
                 </button>
              </div>
         </div>
@@ -218,6 +226,9 @@
                 <div class="mt-8 flex flex-col gap-4">
                     <button id="saveSettingsButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-4 rounded-2xl transition shadow-lg shadow-emerald-500/20">Зберегти налаштування</button>
                     <button id="resetDataButton" class="w-full text-red-500 text-sm font-medium py-3 hover:text-red-400">Скинути всі дані</button>
+                    <button id="signOutButton" class="w-full text-slate-500 text-sm font-medium py-3 hover:text-slate-300 hidden border-t border-slate-800 pt-6">
+                        Вийти з акаунту
+                    </button>
                 </div>
              </div>
         </div>
