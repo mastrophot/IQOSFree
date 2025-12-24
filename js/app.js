@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     toxicCloudEl = document.getElementById('toxicCloud');
     healthValueEl = document.getElementById('healthValue');
     growthStageEl = document.getElementById('growthStage');
-    smokeFreeStreakEl = document.getElementById('smokeFreeStreak');
+    smokeButton = document.getElementById('smokeButton');
     emergencySmokeButton = document.getElementById('emergencySmokeButton');
     
     smokedTodayValueEl = document.getElementById('smokedTodayValue');
