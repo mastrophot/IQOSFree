@@ -42,7 +42,7 @@ let dailySmokingChartSection, dailySmokeChartCanvas;
 let statisticsSection, smokeChartCanvas;
 let totalSmokesAllTimeEl, avgSmokesPerDayEl;
 let statsTabs, statsModeBtns;
-let insightsSection, peakHourValueEl, activityHeatmapEl;
+let insightsSection, peakHourValueEl, activityHeatmapEl, heatmapLabelsEl;
 let currentChartPeriod = 'day';
 let currentChartMode = 'sticks';
 let confirmModal, modalText, confirmYes, confirmNo;
