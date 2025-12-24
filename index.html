@@ -50,12 +50,12 @@
     </div>
 
     <!-- Main App Container -->
-    <div id="app" class="hidden w-full max-w-lg mx-auto text-center relative z-10 pb-10">
+    <div id="app" class="hidden w-full max-w-lg mx-auto text-center relative z-10 pb-6">
         
-        <div id="main-view" class="flex flex-col gap-6 fade-in">
+        <div id="main-view" class="flex flex-col gap-5 fade-in">
             
             <!-- Header -->
-            <div class="mt-4 flex items-center justify-between">
+            <div class="mt-2 flex items-center justify-between">
                 <div>
                     <h1 class="text-2xl font-black tracking-tight text-white drop-shadow-sm text-left">
                         Кидай Курити
@@ -71,10 +71,10 @@
             </div>
             
             <!-- Timer Hero Section -->
-            <div class="py-10 relative">
-                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px] -z-10 animate-pulse-slow"></div>
-                <div id="timer" class="timer-text text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-colors duration-500">00:00</div>
-                <p id="statusMessage" class="status-text text-slate-400 mt-2">Час до наступної</p>
+            <div class="py-6 relative">
+                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-56 h-56 bg-emerald-500/5 rounded-full blur-[80px] -z-10 animate-pulse-slow"></div>
+                <div id="timer" class="timer-text text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-colors duration-500">00:00</div>
+                <p id="statusMessage" class="status-text text-slate-500 mt-1">Час до наступної</p>
             </div>
 
             <!-- Primary Action Button -->
@@ -90,58 +90,59 @@
             </button>
 
             <!-- Bento Grid Stats -->
-            <div class="grid grid-cols-2 gap-4 delay-200 fade-in">
+            <div class="grid grid-cols-2 gap-3 delay-200 fade-in">
                 <!-- Smoked Today -->
-                <div class="glass-panel p-5 rounded-3xl text-left flex flex-col justify-between h-32">
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                <div class="glass-panel p-4 rounded-3xl text-left flex flex-col justify-between h-28">
+                    <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         Сьогодні
                     </div>
                     <div>
-                        <p class="text-3xl font-bold text-white" id="smokedTodayValue">0</p>
+                        <p class="text-2xl font-bold text-white" id="smokedTodayValue">0</p>
                         <p class="text-slate-500 text-[10px] mt-0.5" id="smokedTodayPlanned">...</p>
                     </div>
                 </div>
 
                 <!-- Spent Today -->
-                <div class="glass-panel p-5 rounded-3xl text-left flex flex-col justify-between h-32">
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                <div class="glass-panel p-4 rounded-3xl text-left flex flex-col justify-between h-28">
+                    <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Витрати
                     </div>
                     <div>
-                        <p class="text-3xl font-bold text-white" id="spentTodayValue">0</p>
+                        <p class="text-2xl font-bold text-white" id="spentTodayValue">0</p>
                         <p class="text-slate-500 text-[10px] mt-0.5" id="spentTodayPlanned">...</p>
                     </div>
                 </div>
 
                 <!-- Saved (Wide) -->
-                <div class="glass-panel p-5 rounded-3xl text-left col-span-2 flex items-center justify-between">
+                <div class="glass-panel p-4 rounded-3xl text-left col-span-2 flex items-center justify-between">
                      <div>
-                        <div class="text-slate-400 text-xs font-bold uppercase tracking-wider">Зекономлено</div>
-                        <p class="text-2xl font-black text-emerald-400 mt-1" id="totalMoneySaved">0.00 грн</p>
+                        <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Зекономлено</div>
+                        <p class="text-xl font-black text-emerald-400 mt-0.5" id="totalMoneySaved">0.00 грн</p>
                     </div>
                     <div class="text-right">
-                        <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Якби не кидав</div>
-                        <p class="text-sm font-semibold text-slate-300 mt-1" id="expectedTotalMoney">0.00 грн</p>
+                        <div class="text-slate-600 text-[10px] font-bold uppercase tracking-wider">Якби не кидав</div>
+                        <p class="text-sm font-semibold text-slate-400 mt-0.5" id="expectedTotalMoney">0.00 грн</p>
                     </div>
                 </div>
             </div>
 
             <!-- Streaks & Emergency Grid -->
-             <div class="grid grid-cols-2 gap-4 delay-300 fade-in">
-                 <div class="glass-panel p-5 rounded-3xl text-left">
-                     <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Інтервал</div>
-                     <p class="text-xl font-bold text-cyan-400" id="smokeFreeStreak">0</p>
-                     <p class="text-[10px] text-slate-500 mt-1">Рекорд: <span id="longestSmokeFreeStreak" class="text-slate-300">0</span></p>
+             <div class="grid grid-cols-2 gap-3 delay-300 fade-in">
+                 <div class="glass-panel p-4 rounded-3xl text-left">
+                     <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Інтервал</div>
+                     <p class="text-lg font-bold text-cyan-400" id="smokeFreeStreak">0</p>
+                     <p class="text-[10px] text-slate-500 mt-0.5">Рекорд: <span id="longestSmokeFreeStreak" class="text-slate-300">0</span></p>
                  </div>
 
-                 <button id="emergencySmokeButton" class="glass-panel p-5 rounded-3xl text-left hover:bg-red-500/10 hover:border-red-500/30 transition-colors group">
-                     <div class="text-slate-400 group-hover:text-red-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1 transition-colors">
+                 <!-- Emergency Button: Made more distinct with border and text color -->
+                 <button id="emergencySmokeButton" class="p-4 rounded-3xl text-left bg-red-900/10 border border-red-500/20 hover:bg-red-900/20 hover:border-red-500/40 transition-all group active:scale-95">
+                     <div class="text-red-400/80 group-hover:text-red-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1 transition-colors">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                          Надзв.
                      </div>
-                     <p class="text-slate-300 text-sm font-medium leading-tight">Позачергова сигарета</p>
+                     <p class="text-red-100 text-sm font-medium leading-tight">Позачергова сигарета</p>
                  </button>
              </div>
 
