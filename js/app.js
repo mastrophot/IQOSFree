@@ -4,7 +4,7 @@ import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstati
 
 import { firebaseConfig, appId } from './firebase-config.js';
 import { getStickPluralForm, formatHoursToReadable, formatMinutesToReadable } from './utils.js';
-import { renderDailySmokeChart, destroyChart } from './charts.js';
+import { renderSmokeChart, destroyChart } from './charts.js';
 
 // --- APPLICATION STATE ---
 let app;
@@ -38,6 +38,10 @@ let totalMoneySavedEl, smokeFreeStreakEl, longestSmokeFreeStreakEl, expectedTota
 let signInGoogleButton, signOutButton, userStatusDisplay;
 let packPriceInput, packSizeInput, oldHabitInput, smokeIntervalMinutesInput, oldHabitMoneyEl, desiredDailySticksInput, desiredDailySticksMoneyEl;
 let dailySmokingChartSection, dailySmokeChartCanvas;
+let statisticsSection, smokeChartCanvas;
+let totalSmokesAllTimeEl, avgSmokesPerDayEl;
+let statsTabs;
+let currentChartPeriod = 'day';
 let confirmModal, modalText, confirmYes, confirmNo;
 
 function showConfirm(text, onConfirm) {
@@ -144,11 +148,8 @@ function updateUI() {
     emergencySmokeButton.disabled = false;
     updateStatistics(now);
 
-    if (!dailySmokingChartSection.hasAttribute('open')) {
-        destroyChart();
-    } else {
-        renderDailySmokeChart(dailySmokeChartCanvas, appData.smokeHistory);
-    }
+    renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod);
+    updateGlobalStats();
 }
 
 function updateStatistics(now) {
@@ -202,6 +203,35 @@ function updateStatistics(now) {
 
     const expectedMoneyTodayBasedOnOldHabit = oldHabit * pricePerCig; 
     expectedTotalMoneyEl.textContent = `${expectedMoneyTodayBasedOnOldHabit.toFixed(2)} грн`;
+}
+
+function updateGlobalStats() {
+    const totalSmokes = appData.smokeHistory.length;
+    totalSmokesAllTimeEl.textContent = totalSmokes;
+
+    const daysSinceStart = Math.max(1, (new Date().getTime() - appData.appStartDate) / (1000 * 60 * 60 * 24));
+    const avg = totalSmokes / daysSinceStart;
+    avgSmokesPerDayEl.textContent = avg.toFixed(1);
+}
+
+function handleChartTabClick(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    
+    // Update State
+    currentChartPeriod = btn.dataset.period;
+
+    // Update UI
+    statsTabs.forEach(t => {
+        t.classList.remove('active', 'bg-slate-700', 'text-white', 'font-bold', 'shadow-sm');
+        t.classList.add('text-slate-400', 'font-medium');
+        if (t === btn) {
+            t.classList.add('active', 'bg-slate-700', 'text-white', 'font-bold', 'shadow-sm');
+            t.classList.remove('text-slate-400', 'font-medium');
+        }
+    });
+
+    updateUI();
 }
 
 function handleSmoke(type = 'regular') {
@@ -372,8 +402,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     desiredDailySticksInput = document.getElementById('desiredDailySticks');
     desiredDailySticksMoneyEl = document.getElementById('desiredDailySticksMoney');
 
-    dailySmokingChartSection = document.getElementById('dailySmokingChartSection');
-    dailySmokeChartCanvas = document.getElementById('dailySmokeChart');
+    statisticsSection = document.getElementById('statisticsSection');
+    smokeChartCanvas = document.getElementById('smokeChart');
+    totalSmokesAllTimeEl = document.getElementById('totalSmokesAllTime');
+    avgSmokesPerDayEl = document.getElementById('avgSmokesPerDay');
+    statsTabs = document.querySelectorAll('.stats-tab');
+    
+    statsTabs.forEach(tab => tab.addEventListener('click', handleChartTabClick));
 
     confirmModal = document.getElementById('confirmModal');
     modalText = document.getElementById('modalText');
