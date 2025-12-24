@@ -13,7 +13,7 @@ let auth;
 
 let userId = null;
 let dataRef = null;
-let appData = {
+const getDefaultAppData = () => ({
     lastSmokeTime: null,
     smokeHistory: [],
     settings: {
@@ -25,9 +25,11 @@ let appData = {
     },
     longestSmokeFreeStreakHours: 0,
     appStartDate: Date.now(),
-    healthIntegrity: 100, 
+    healthIntegrity: 100,
     lastIntegrityUpdate: Date.now()
-};
+});
+
+let appData = getDefaultAppData();
 
 let eventListenersAttached = false;
 let isInitialAuthCheckComplete = false;
@@ -99,16 +101,25 @@ async function loadData() {
             }
             appData.settings = { ...appData.settings, ...loadedData.settings };
             appData.settings.desiredDailySticks = loadedData.settings?.desiredDailySticks ?? 10;
-            appData.appStartDate = loadedData.appStartDate || Date.now();
-            appData.longestSmokeFreeStreakHours = loadedData.longestSmokeFreeStreakHours || 0;
-            appData.healthIntegrity = loadedData.healthIntegrity ?? 100; // Load or Default
+            
+            // Health Migration/Fallbacks
+            appData.healthIntegrity = loadedData.healthIntegrity ?? 100;
             appData.lastIntegrityUpdate = loadedData.lastIntegrityUpdate || Date.now();
+
+            // Date Migration: If appStartDate is missing or history exists MUCH earlier, prefer first smoke date
+            const savedStartDate = loadedData.appStartDate || 0;
+            const firstSmokeDate = appData.smokeHistory.length > 0 ? appData.smokeHistory[0].timestamp : Date.now();
+            
+            if (savedStartDate === 0) {
+                appData.appStartDate = firstSmokeDate;
+            } else {
+                appData.appStartDate = Math.min(savedStartDate, firstSmokeDate);
+            }
+            
+            appData.longestSmokeFreeStreakHours = loadedData.longestSmokeFreeStreakHours || 0;
         } else {
             console.log("No such document! Creating default.");
-            appData.appStartDate = Date.now();
-            appData.longestSmokeFreeStreakHours = 0; 
-            appData.healthIntegrity = 100;
-            appData.lastIntegrityUpdate = Date.now();
+            appData = getDefaultAppData();
             await saveData(); 
         }
     } catch (error) {
@@ -198,10 +209,15 @@ function updateStatistics(now) {
     const daysSinceAppStart = Math.max(0.0001, (now - appData.appStartDate) / (1000 * 60 * 60 * 24));
     const expectedTotalSmokes = daysSinceAppStart * oldHabit; 
     const actualTotalSmokes = appData.smokeHistory.length;
-    // Granular savings - don't floor the difference, floor the result if needed or keep as is
+    
+    // 1. Total Money SAVED (Cumulative)
     const totalMoneySaved = Math.max(0, (expectedTotalSmokes - actualTotalSmokes) * pricePerCig); 
-
     totalMoneySavedEl.textContent = `${totalMoneySaved.toFixed(2)} грн`;
+
+    // 2. Expected Total Money (If hadn't quit)
+    const totalExpectedMoney = expectedTotalSmokes * pricePerCig;
+    expectedTotalMoneyEl.textContent = `${totalExpectedMoney.toFixed(2)} грн`;
+
 
     let streakMinutes = 0;
     if (appData.lastSmokeTime === null) {
@@ -219,9 +235,6 @@ function updateStatistics(now) {
     longestSmokeFreeStreakEl.textContent = formatHoursToReadable(appData.longestSmokeFreeStreakHours);
     smokeFreeStreakEl.textContent = formatMinutesToReadable(streakMinutes);
 
-    const expectedMoneyTodayBasedOnOldHabit = oldHabit * pricePerCig; 
-
-    expectedTotalMoneyEl.textContent = `${expectedMoneyTodayBasedOnOldHabit.toFixed(2)} грн`;
 
     updateInsights();
 }
@@ -516,15 +529,7 @@ function handleSaveSettings() {
 async function handleResetData() {
     showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
         if (dataRef) await deleteDoc(dataRef);
-        appData = {
-            lastSmokeTime: null,
-            smokeHistory: [],
-            settings: { packPrice: 100, packSize: 20, oldHabit: 20, smokeIntervalMinutes: 60, desiredDailySticks: 10 }, 
-            appStartDate: Date.now(),
-            longestSmokeFreeStreakHours: 0,
-            healthIntegrity: 100,
-            lastIntegrityUpdate: Date.now()
-        };
+        appData = getDefaultAppData();
         await saveData();
         updateSettingsInputs();
         updateUI();
@@ -703,15 +708,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } else {
                 // User signed out, reset to local/anon
-                appData = { 
-                    lastSmokeTime: null,
-                    smokeHistory: [],
-                    settings: { packPrice: 100, packSize: 20, oldHabit: 20, smokeIntervalMinutes: 60, desiredDailySticks: 10 },
-                    appStartDate: Date.now(),
-                    longestSmokeFreeStreakHours: 0,
-                    healthIntegrity: 100,
-                    lastIntegrityUpdate: Date.now()
-                };
+                appData = getDefaultAppData();
                 await loadData();
             }
         }
