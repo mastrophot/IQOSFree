@@ -77,13 +77,22 @@
                 </button>
             </div>
             
-            <!-- Timer Hero Section -->
-            <div class="py-2 relative">
-                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-emerald-500/5 rounded-full blur-[60px] -z-10 animate-pulse-slow"></div>
-                <div id="timer" class="timer-text text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-colors duration-500">00:00</div>
-                <p id="statusMessage" class="status-text text-slate-500 mt-0">Час до наступної</p>
+            <!-- Hero Section / Bio-Core -->
+            <div class="bio-core-container relative mb-6">
+                <!-- Bio-Core Orb -->
+                <div id="bioCore" class="bio-core so-zen"></div>
+                
+                <!-- Timer Overlay -->
+                <div class="relative z-10 w-40 h-40 glass-panel rounded-full flex flex-col items-center justify-center border-2 border-white/10 backdrop-blur-sm shadow-inner">
+                     <span id="timer" class="text-3xl font-black text-white font-mono tracking-wider drop-shadow-lg">GO!</span>
+                     <span id="statusMessage" class="text-[9px] text-slate-200 uppercase tracking-widest mt-1 font-bold">Очікування</span>
+                     
+                     <!-- Integrity Bar Small -->
+                     <div class="integrity-bar-container w-16 mx-auto mt-2 bg-slate-700/50">
+                        <div id="integrityBar" class="integrity-bar" style="width: 100%;"></div>
+                     </div>
+                </div>
             </div>
-
             <!-- Primary Action Button -->
             <button id="smokeButton" class="group relative w-full bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 disabled:from-slate-800 disabled:to-slate-900 disabled:text-slate-600 text-white font-black py-4 px-6 rounded-2xl text-lg transition-all duration-300 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_60px_-15px_rgba(16,185,129,0.6)] transform hover:-translate-y-1 active:scale-[0.98] disabled:hover:translate-y-0 disabled:shadow-none overflow-hidden delay-100 fade-in">
                 <span class="relative z-10 flex items-center justify-center gap-2">
