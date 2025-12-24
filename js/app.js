@@ -450,6 +450,8 @@ function renderLifeTree(stage, health) {
     const newSrc = `assets/tree_${assetIndex}.png`;
     if (img.src !== window.location.origin + '/' + newSrc && !img.src.endsWith(newSrc)) {
         img.src = newSrc;
+        // Provide URL to CSS for masking
+        img.style.setProperty('--tree-url', `url(${newSrc})`);
     }
 
     // Apply Health Level Classes (1-10) logic.
