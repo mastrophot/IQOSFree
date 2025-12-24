@@ -213,22 +213,28 @@ body {
 
 /* --- Life Tree (Tamagotchi) 2025 --- */
 #treeContainer {
-    width: 220px; /* Slightly smaller to fit layout */
-    height: 220px;
+    width: 240px; 
+    height: 240px;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    border-radius: 40px;
+    background: radial-gradient(circle, oklch(25% 0.05 165 / 15%) 0%, transparent 70%);
 }
 
-.tree-trunk {
-    fill: oklch(35% 0.05 45);
-    transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+#treeImage {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    mix-blend-mode: screen; /* Makes black background transparent on dark app */
+    transition: all 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 10px 20px oklch(0% 0 0 / 50%));
 }
 
-.tree-leaf {
-    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.8s ease;
-    transform-origin: center;
+.tree-sick {
+    filter: grayscale(0.8) sepia(0.2) drop-shadow(0 10px 20px oklch(0% 0 0 / 50%)) !important;
 }
 
 /* Timer Text Clamp Adjustment */

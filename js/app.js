@@ -430,112 +430,41 @@ function updateAvatar() { // Life Tree Logic 2025
 
 function renderLifeTree(stage, health) {
     const container = treeContainerEl;
-    let svg = container.querySelector('svg');
+    let img = container.querySelector('#treeImage');
     
-    if (!svg) {
-        svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 240 240");
-        svg.setAttribute("class", "w-full h-full relative z-0");
-        container.appendChild(svg);
+    if (!img) {
+        // Clear SVG if exists logic.
+        container.innerHTML = '<div class="toxic-cloud" id="toxicCloud"></div>';
+        img = document.createElement('img');
+        img.id = 'treeImage';
+        container.appendChild(img);
+        // Re-assign toxicCloudEl since innerHTML was cleared logic.
+        toxicCloudEl = document.getElementById('toxicCloud');
     }
 
-    // 1. Claymorphism Palette logic.
-    const isSick = health < 40;
-    const baseGreen = isSick ? 'oklch(60% 0.1 70)' : 'oklch(70% 0.15 160)';
-    const lightGreen = isSick ? 'oklch(70% 0.08 70)' : 'oklch(80% 0.12 160)';
-    const darkGreen = isSick ? 'oklch(45% 0.12 70)' : 'oklch(55% 0.18 160)';
-    const trunkColor = 'oklch(40% 0.06 45)';
-    const trunkLight = 'oklch(50% 0.05 45)';
-
-    // 2. SVG Filters for Clay Depth logic.
-    let innerHTML = `
-        <defs>
-            <!-- Clay Inner Shadow Filter logic. -->
-            <filter id="clayFilter" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur" />
-                <feOffset dx="-4" dy="-4" />
-                <feSpecularLighting surfaceScale="5" specularConstant="0.8" specularExponent="20" lighting-color="white" result="specular">
-                    <fePointLight x="-50" y="-50" z="300" />
-                </feSpecularLighting>
-                <feComposite in="specular" in2="SourceAlpha" operator="in" result="gloss" />
-                <feMerge>
-                    <feMergeNode in="SourceGraphic" />
-                    <feMergeNode in="gloss" />
-                </feMerge>
-            </filter>
-            
-            <linearGradient id="trunkGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:${trunkColor};" />
-                <stop offset="50%" style="stop-color:${trunkLight};" />
-                <stop offset="100%" style="stop-color:${trunkColor};" />
-            </linearGradient>
-
-            <radialGradient id="canopyGrad" cx="30%" cy="30%" r="70%">
-                <stop offset="0%" style="stop-color:${lightGreen};" />
-                <stop offset="100%" style="stop-color:${darkGreen};" />
-            </radialGradient>
-        </defs>
-    `;
-
-    // 3. Round "Clay" Trunk logic.
-    const trunkW = 24 + (stage * 6);
-    const trunkH = 40 + (stage * 15);
-    const baseY = 200;
+    // Determine Asset Stage (Mapping stages to our generated images) logic.
+    let assetIndex = stage;
+    if (assetIndex === 2) assetIndex = 3; // Mapping missing sapling to medium tree logic.
     
-    innerHTML += `
-        <rect x="${120 - trunkW/2}" y="${baseY - trunkH}" width="${trunkW}" height="${trunkH}" 
-              rx="${trunkW/2}" fill="url(#trunkGrad)" filter="url(#clayFilter)" 
-              style="transition: all 1s ease;" />
-    `;
-
-    // 4. Soft Canopy "Bubbles" logic.
-    const radius = 35 + (stage * 10);
-    const centerY = baseY - trunkH - (radius * 0.4);
-    
-    const visiblePercent = health / 100;
-    const blobCount = 3 + (stage * 1);
-    const visibleBlobs = Math.max(1, Math.floor(visiblePercent * blobCount));
-
-    for (let i = 0; i < blobCount; i++) {
-        const isVisible = i < visibleBlobs;
-        const scale = isVisible ? 1 : 0.4;
-        const opacity = isVisible ? 1 : 0;
-        const angle = (i / blobCount) * Math.PI * 2 - Math.PI/2;
-        const dist = i === 0 ? 0 : radius * 0.6;
-        
-        const bx = 120 + Math.cos(angle) * dist;
-        const by = centerY + Math.sin(angle) * (dist * 0.6);
-        const bRadius = i === 0 ? radius * 1.1 : radius * 0.9;
-
-        innerHTML += `
-            <circle cx="${bx}" cy="${by}" r="${bRadius}" 
-                    fill="url(#canopyGrad)" 
-                    filter="url(#clayFilter)"
-                    style="transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: ${bx}px ${by}px; transform: scale(${scale}); opacity: ${opacity};" />
-        `;
+    const newSrc = `assets/tree_${assetIndex}.png`;
+    if (img.src !== window.location.origin + '/' + newSrc && !img.src.endsWith(newSrc)) {
+        img.src = newSrc;
     }
 
-    // 5. Small Pressed Leaves logic.
-    if (health > 10) {
-        innerHTML += renderClayLeaves(120, centerY, radius, isSick);
+    // Apply "Sick" filter if health is low logic.
+    if (health < 40) {
+        img.classList.add('tree-sick');
+    } else {
+        img.classList.remove('tree-sick');
     }
-
-    svg.innerHTML = innerHTML;
+    
+    // Subtle breathing animation based on health logic.
+    const scale = 0.95 + (health / 100) * 0.1;
+    img.style.transform = `scale(${scale})`;
 }
 
-function renderClayLeaves(cx, cy, radius, isSick) {
-    let leaves = '';
-    const leafColor = isSick ? 'oklch(50% 0.1 75)' : 'oklch(80% 0.15 160)';
-    for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2;
-        const lx = cx + Math.cos(angle) * (radius * 0.5);
-        const ly = cy + Math.sin(angle) * (radius * 0.5);
-        leaves += `
-            <circle cx="${lx}" cy="${ly}" r="6" fill="${leafColor}" opacity="0.6" filter="blur(1px)" />
-        `;
-    }
-    return leaves;
-}
+// Removing unused helper function logic.
+// renderLeafParticles removed. logic.
 
 function updateGlobalStats() {
     const totalSmokes = appData.smokeHistory.length;
