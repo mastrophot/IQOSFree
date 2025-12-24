@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, linkWithRedirect, signInWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, linkWithPopup, signOut, signInWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { firebaseConfig, appId } from './firebase-config.js';
@@ -279,16 +279,30 @@ function toggleSettingsView() {
 async function handleGoogleSignIn() {
     const provider = new GoogleAuthProvider();
     signInGoogleButton.disabled = true;
-    signInGoogleButton.textContent = "Переадресація...";
+    signInGoogleButton.textContent = "Вхід...";
     try {
         if (auth.currentUser && auth.currentUser.isAnonymous) {
-            await linkWithRedirect(auth.currentUser, provider);
+            await linkWithPopup(auth.currentUser, provider);
         } else {
-            await signInWithRedirect(auth, provider);
+            await signInWithPopup(auth, provider);
         }
     } catch (error) {
         console.error("Auth error:", error);
-        userStatusDisplay.textContent = `Помилка: ${error.message}`;
+        if (error.code === 'auth/credential-already-in-use') {
+             userStatusDisplay.textContent = "Акаунт існує. Переходимо...";
+             const credential = GoogleAuthProvider.credentialFromError(error);
+             if (credential) {
+                 try {
+                     await signInWithCredential(auth, credential);
+                 } catch (reauthError) {
+                     console.error("Reauth error:", reauthError);
+                     userStatusDisplay.textContent = "Помилка входу в існуючий.";
+                 }
+             }
+        } else {
+             userStatusDisplay.textContent = `Помилка: ${error.message}`;
+        }
+    } finally {
         signInGoogleButton.disabled = false;
         signInGoogleButton.textContent = "Увійти через Google";
     }
@@ -378,25 +392,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Handle Redirect Result
-    // Handle Redirect Result
-    try {
-        await getRedirectResult(auth);
-    } catch (error) {
-        console.error("Redirect result error:", error);
-        if (error.code === 'auth/credential-already-in-use') {
-            userStatusDisplay.textContent = "Акаунт вже існує. Входимо...";
-            if (error.credential) {
-                try {
-                    await signInWithCredential(auth, error.credential);
-                } catch (reauthError) {
-                    console.error("Reauth error:", reauthError);
-                    userStatusDisplay.textContent = "Помилка повторного входу.";
-                }
-            }
-        } else {
-            userStatusDisplay.textContent = `Помилка входу: ${error.message}`;
-        }
-    }
+    // Handle Redirect Result logic removed - using Popup now
+
 
     // Auth State Listener
     onAuthStateChanged(auth, async (user) => {
