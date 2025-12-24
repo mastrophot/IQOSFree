@@ -195,10 +195,11 @@ function updateStatistics(now) {
         spentTodayValueEl.classList.add('text-green-400');
     }
 
-    const daysSinceAppStart = (now - appData.appStartDate) / (1000 * 60 * 60 * 24);
+    const daysSinceAppStart = Math.max(0.0001, (now - appData.appStartDate) / (1000 * 60 * 60 * 24));
     const expectedTotalSmokes = daysSinceAppStart * oldHabit; 
     const actualTotalSmokes = appData.smokeHistory.length;
-    const totalMoneySaved = Math.max(0, Math.floor(expectedTotalSmokes - actualTotalSmokes)) * pricePerCig; 
+    // Granular savings - don't floor the difference, floor the result if needed or keep as is
+    const totalMoneySaved = Math.max(0, (expectedTotalSmokes - actualTotalSmokes) * pricePerCig); 
 
     totalMoneySavedEl.textContent = `${totalMoneySaved.toFixed(2)} грн`;
 
@@ -352,7 +353,10 @@ function updateInsights() {
 function updateAvatar() { // Health Ring Logic
     if (!healthRingEl || !healthValueEl) return;
     
-    // Safety Fallback for NaN
+    // Safety Fallback for NaN - Force Number casting
+    appData.healthIntegrity = Number(appData.healthIntegrity);
+    appData.lastIntegrityUpdate = Number(appData.lastIntegrityUpdate);
+    
     if (isNaN(appData.healthIntegrity)) appData.healthIntegrity = 100;
     if (isNaN(appData.lastIntegrityUpdate)) appData.lastIntegrityUpdate = Date.now();
     

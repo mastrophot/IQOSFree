@@ -200,18 +200,34 @@
                      <canvas id="smokeChart"></canvas>
                  </div>
                  
-                 <!-- Insights / Heatmap -->
-                 <div id="insightsSection" class="mt-2 pt-4 border-t border-slate-700/50 hidden">
-                     <div class="flex items-center justify-between mb-2">
-                         <span class="text-[10px] font-bold uppercase text-slate-500">Пікова активність</span>
-                         <span id="peakHourValue" class="text-xs font-bold text-emerald-400">...</span>
-                     </div>
-                     <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden flex" id="activityHeatmap"></div>
-                     <div id="heatmapLabels" class="flex justify-between text-[8px] text-slate-600 mt-1 font-mono">
-                         <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:59</span>
-                     </div>
-                 </div>
-             </div>
+                  <!-- Insights / Heatmap -->
+                <div id="insightsSection" class="mt-2 pt-4 border-t border-slate-700/50 hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-bold uppercase text-slate-500">Пікова активність</span>
+                        <span id="peakHourValue" class="text-xs font-bold text-emerald-400">...</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden flex" id="activityHeatmap"></div>
+                    <div id="heatmapLabels" class="flex justify-between text-[8px] text-slate-600 mt-1 font-mono">
+                        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:59</span>
+                    </div>
+                </div>
+
+                <!-- How it works -->
+                <div class="mt-4 p-3 bg-slate-900/40 rounded-xl border border-white/5 text-left">
+                    <h3 class="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-2 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Механіка Додатку
+                    </h3>
+                    <div class="space-y-2">
+                        <p class="text-[10px] text-slate-400 leading-relaxed italic border-l-2 border-emerald-500/30 pl-2">
+                            <span class="text-white font-bold">Кільце Здоров'я:</span> Куріння пошкоджує ваш організм (-15% за сигарету). Час без диму лікує вас (+1% на годину). Тримайте кільце замкненим!
+                        </p>
+                        <p class="text-[10px] text-slate-400 leading-relaxed italic border-l-2 border-cyan-500/30 pl-2">
+                            <span class="text-white font-bold">Зекономлено:</span> Ми рахуємо різницю між вашою <span class="text-slate-200 underline decoration-cyan-500/50">старою звичкою</span> та реальною кількістю викуреного. Це ваші реальні гроші в кишені.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
              <!-- Footer / Auth -->
              <div class="mt-4 mb-20">
