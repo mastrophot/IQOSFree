@@ -229,10 +229,19 @@ body {
     height: 100%;
     object-fit: contain;
     transition: all 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    /* Stack base transparency filter with level-specific filters */
-    filter: url(#blackToAlpha) var(--lvl-filter, ) drop-shadow(0 10px 20px oklch(0% 0 0 / 60%)) contrast(1.1) brightness(1.1);
-    /* Safe fallback for browsers with partial SVG filter support */
-    mix-blend-mode: screen;
+    
+    /* Best technique for black background removal on mobile */
+    -webkit-mask-image: var(--tree-url);
+    mask-image: var(--tree-url);
+    -webkit-mask-mode: luminance;
+    mask-mode: luminance;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+
+    /* Base enhancements */
+    filter: var(--lvl-filter, ) drop-shadow(0 10px 20px oklch(0% 0 0 / 60%)) contrast(1.1) brightness(1.1);
 }
 
 /* 10 Growth/Health Levels - Using variables to avoid overwriting the base filter */
