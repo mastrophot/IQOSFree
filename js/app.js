@@ -24,9 +24,8 @@ let appData = {
         desiredDailySticks: 10 
     },
     longestSmokeFreeStreakHours: 0,
-    longestSmokeFreeStreakHours: 0,
     appStartDate: Date.now(),
-    healthIntegrity: 100, // New Bio-Core State
+    healthIntegrity: 100, 
     lastIntegrityUpdate: Date.now()
 };
 
@@ -353,6 +352,10 @@ function updateInsights() {
 function updateAvatar() { // Health Ring Logic
     if (!healthRingEl || !healthValueEl) return;
     
+    // Safety Fallback for NaN
+    if (isNaN(appData.healthIntegrity)) appData.healthIntegrity = 100;
+    if (isNaN(appData.lastIntegrityUpdate)) appData.lastIntegrityUpdate = Date.now();
+    
     // 1. Regenerate Health (1% per hour)
     const now = Date.now();
     const lastUpdate = appData.lastIntegrityUpdate || now;
@@ -514,7 +517,9 @@ async function handleResetData() {
             smokeHistory: [],
             settings: { packPrice: 100, packSize: 20, oldHabit: 20, smokeIntervalMinutes: 60, desiredDailySticks: 10 }, 
             appStartDate: Date.now(),
-            longestSmokeFreeStreakHours: 0 
+            longestSmokeFreeStreakHours: 0,
+            healthIntegrity: 100,
+            lastIntegrityUpdate: Date.now()
         };
         await saveData();
         updateSettingsInputs();
@@ -699,7 +704,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     smokeHistory: [],
                     settings: { packPrice: 100, packSize: 20, oldHabit: 20, smokeIntervalMinutes: 60, desiredDailySticks: 10 },
                     appStartDate: Date.now(),
-                    longestSmokeFreeStreakHours: 0
+                    longestSmokeFreeStreakHours: 0,
+                    healthIntegrity: 100,
+                    lastIntegrityUpdate: Date.now()
                 };
                 await loadData();
             }
