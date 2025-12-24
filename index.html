@@ -34,208 +34,203 @@
     </script>
 </head>
 <!-- Changed background to a gradient -->
-<body class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center min-h-screen p-4 selection:bg-emerald-500 selection:text-white">
+<body class="bg-slate-950 text-white flex items-center justify-center min-h-screen p-4 selection:bg-emerald-500 selection:text-white overflow-x-hidden relative">
 
-    <!-- Loader with a bit more style -->
-    <div id="loader" class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-        <p class="text-xl text-slate-400 font-light tracking-wide">Завантаження...</p>
+    <!-- Aurora Background -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="aurora-blob blob-1"></div>
+        <div class="aurora-blob blob-2"></div>
+        <div class="aurora-blob blob-3"></div>
     </div>
 
-    <!-- Main App Container -> Glass effect -->
-    <div id="app" class="hidden w-full max-w-md mx-auto text-center fade-in relative z-10">
-        
-        <!-- Background Blob Effects for "Premium" feel -->
-        <div class="absolute -top-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
-        <div class="absolute top-40 -right-20 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+    <!-- Loader -->
+    <div id="loader" class="relative z-50 text-center flex flex-col items-center justify-center h-screen w-screen absolute top-0 left-0 bg-slate-950">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mb-4 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+        <p class="text-xl text-slate-400 font-light tracking-wide animate-pulse">Завантаження...</p>
+    </div>
 
-        <div id="main-view">
+    <!-- Main App Container -->
+    <div id="app" class="hidden w-full max-w-lg mx-auto text-center relative z-10 pb-10">
+        
+        <div id="main-view" class="flex flex-col gap-6 fade-in">
+            
             <!-- Header -->
-            <div class="mb-10">
-                <h1 class="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 drop-shadow-sm">
-                    Кидай Курити
-                </h1>
-                <p id="userStatusDisplay" class="text-xs text-slate-500 mt-2 font-medium tracking-wide uppercase">...</p>
+            <div class="mt-4 flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-white drop-shadow-sm text-left">
+                        Кидай Курити
+                    </h1>
+                    <p id="userStatusDisplay" class="text-xs text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
+                </div>
+                 <button id="openSettingsButton" class="p-3 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors backdrop-blur-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
             </div>
             
-            <!-- Timer Section -->
-            <div class="my-10 relative">
-                <!-- Circular glow behind timer -->
-                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-slate-800/30 rounded-full blur-2xl -z-10"></div>
-                <div id="timer" class="timer-text font-black text-red-500 tracking-tighter drop-shadow-2xl transition-colors duration-500">00:00</div>
-                <p id="statusMessage" class="status-text font-bold text-slate-400 uppercase tracking-widest text-sm mt-2">Час до наступної</p>
+            <!-- Timer Hero Section -->
+            <div class="py-10 relative">
+                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px] -z-10 animate-pulse-slow"></div>
+                <div id="timer" class="timer-text text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-colors duration-500">00:00</div>
+                <p id="statusMessage" class="status-text text-slate-400 mt-2">Час до наступної</p>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex items-stretch justify-center gap-3 mb-6">
-                <button id="smokeButton" class="group relative w-3/4 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-white font-bold py-5 px-6 rounded-2xl text-xl transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transform hover:-translate-y-1 active:scale-95 disabled:hover:translate-y-0 disabled:shadow-none overflow-hidden">
-                    <span class="relative z-10">Я щойно покурив</span>
-                    <div class="absolute inset-0 bg-white/20 group-hover:translate-x-full transition-transform duration-500 -skew-x-12 -translate-x-full"></div>
-                </button>
-                <button id="emergencySmokeButton" class="w-1/4 bg-slate-800/50 hover:bg-red-500/20 border border-slate-700 hover:border-red-500/50 text-slate-300 hover:text-red-400 font-bold py-5 px-2 rounded-2xl text-xs transition-all duration-300 backdrop-blur-sm flex flex-col items-center justify-center gap-1 active:scale-95">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <!-- Primary Action Button -->
+            <button id="smokeButton" class="group relative w-full bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 disabled:from-slate-800 disabled:to-slate-900 disabled:text-slate-600 text-white font-black py-6 px-6 rounded-3xl text-xl transition-all duration-300 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_60px_-15px_rgba(16,185,129,0.6)] transform hover:-translate-y-1 active:scale-[0.98] disabled:hover:translate-y-0 disabled:shadow-none overflow-hidden delay-100 fade-in">
+                <span class="relative z-10 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
                     </svg>
-                    <span>Поза<br>нормою</span>
-                </button>
-            </div>
-
-            <button id="openSettingsButton" class="mb-6 text-sm text-slate-500 hover:text-slate-300 transition-colors font-medium flex items-center justify-center gap-2 mx-auto">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Налаштування
+                    Я покурив
+                </span>
+                <div class="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             </button>
 
-            <!-- Cards Grid -->
-            <div class="space-y-4">
-                <!-- Today's Stats Card -->
-                <div class="p-6 bg-slate-800/40 backdrop-blur-md border border-slate-700/50 rounded-3xl shadow-xl">
-                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 text-left flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
+            <!-- Bento Grid Stats -->
+            <div class="grid grid-cols-2 gap-4 delay-200 fade-in">
+                <!-- Smoked Today -->
+                <div class="glass-panel p-5 rounded-3xl text-left flex flex-col justify-between h-32">
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         Сьогодні
-                    </h2>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="text-center p-3 rounded-2xl bg-slate-800/50 border border-slate-700/30">
-                            <p class="text-3xl font-black text-amber-400" id="smokedTodayValue">0</p>
-                            <p class="text-slate-500 text-xs mt-1" id="smokedTodayPlanned">...</p>
-                        </div>
-                        <div class="text-center p-3 rounded-2xl bg-slate-800/50 border border-slate-700/30">
-                            <p class="text-3xl font-black text-emerald-400" id="spentTodayValue">0.00</p>
-                            <p class="text-slate-500 text-xs mt-1" id="spentTodayPlanned">...</p>
-                        </div>
                     </div>
-                    
-                    <div class="mt-4 pt-4 border-t border-slate-700/50 flex justify-between items-center">
-                        <div>
-                            <p class="text-slate-400 text-xs font-medium">Зекономлено</p>
-                            <p class="text-lg font-bold text-indigo-400" id="totalMoneySaved">0.00 грн</p>
-                        </div>
-                         <div class="text-right">
-                             <p class="text-slate-400 text-xs font-medium">Стара звичка</p>
-                             <p class="text-sm font-bold text-white" id="expectedTotalMoney">0.00 грн</p>
-                        </div>
+                    <div>
+                        <p class="text-3xl font-bold text-white" id="smokedTodayValue">0</p>
+                        <p class="text-slate-500 text-[10px] mt-0.5" id="smokedTodayPlanned">...</p>
                     </div>
                 </div>
 
-                <!-- Daily Chart Card -->
-                <details id="dailySmokingChartSection" class="group p-6 bg-slate-800/40 backdrop-blur-md border border-slate-700/50 rounded-3xl shadow-xl transition-all duration-300 open:bg-slate-800/60">
-                    <summary class="text-sm font-bold text-slate-400 uppercase tracking-wider cursor-pointer list-none flex items-center justify-between">
-                        <span class="flex items-center gap-2">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                            </svg>
-                            Графік за день
-                        </span>
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-open:rotate-180 transition-transform text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </summary>
-                    <div class="chart-container mt-6 w-full h-48 fade-in">
-                        <canvas id="dailySmokeChart" class="w-full h-full"></canvas>
+                <!-- Spent Today -->
+                <div class="glass-panel p-5 rounded-3xl text-left flex flex-col justify-between h-32">
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Витрати
                     </div>
-                </details>
-                
-                <!-- Streaks Card -->
-                <div class="p-6 bg-slate-800/40 backdrop-blur-md border border-slate-700/50 rounded-3xl shadow-xl">
-                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 text-left flex items-center gap-2">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Інтервали
-                    </h2>
-                    <div class="flex justify-around text-center gap-4">
-                        <div class="flex-1">
-                            <p class="text-xl font-bold text-cyan-400" id="smokeFreeStreak">0</p>
-                            <p class="text-slate-500 text-xs font-medium uppercase tracking-wide mt-1">Поточний</p>
-                        </div>
-                        <div class="w-px bg-slate-700"></div>
-                        <div class="flex-1">
-                            <p class="text-xl font-bold text-orange-400" id="longestSmokeFreeStreak">0</p>
-                            <p class="text-slate-500 text-xs font-medium uppercase tracking-wide mt-1">Рекорд</p>
-                        </div>
+                    <div>
+                        <p class="text-3xl font-bold text-white" id="spentTodayValue">0</p>
+                        <p class="text-slate-500 text-[10px] mt-0.5" id="spentTodayPlanned">...</p>
+                    </div>
+                </div>
+
+                <!-- Saved (Wide) -->
+                <div class="glass-panel p-5 rounded-3xl text-left col-span-2 flex items-center justify-between">
+                     <div>
+                        <div class="text-slate-400 text-xs font-bold uppercase tracking-wider">Зекономлено</div>
+                        <p class="text-2xl font-black text-emerald-400 mt-1" id="totalMoneySaved">0.00 грн</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Якби не кидав</div>
+                        <p class="text-sm font-semibold text-slate-300 mt-1" id="expectedTotalMoney">0.00 грн</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Login/Logout Section (Footer) -->
-            <div class="mt-8 border-t border-slate-800 pt-6">
-                <!-- Кнопка для входу -->
-                <button id="signInGoogleButton" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-3 px-4 rounded-xl transition flex items-center justify-center gap-3 border border-slate-700 hover:border-slate-600">
+            <!-- Streaks & Emergency Grid -->
+             <div class="grid grid-cols-2 gap-4 delay-300 fade-in">
+                 <div class="glass-panel p-5 rounded-3xl text-left">
+                     <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Інтервал</div>
+                     <p class="text-xl font-bold text-cyan-400" id="smokeFreeStreak">0</p>
+                     <p class="text-[10px] text-slate-500 mt-1">Рекорд: <span id="longestSmokeFreeStreak" class="text-slate-300">0</span></p>
+                 </div>
+
+                 <button id="emergencySmokeButton" class="glass-panel p-5 rounded-3xl text-left hover:bg-red-500/10 hover:border-red-500/30 transition-colors group">
+                     <div class="text-slate-400 group-hover:text-red-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1 transition-colors">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                         Надзв.
+                     </div>
+                     <p class="text-slate-300 text-sm font-medium leading-tight">Позачергова сигарета</p>
+                 </button>
+             </div>
+
+             <!-- Chart Details -->
+             <details id="dailySmokingChartSection" class="glass-panel rounded-3xl overflow-hidden group delay-300 fade-in">
+                 <summary class="p-5 text-xs font-bold text-slate-400 uppercase tracking-wider cursor-pointer list-none flex items-center justify-between hover:bg-white/5 transition-colors">
+                    <span class="flex items-center gap-2">Статистика дня</span>
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 group-open:rotate-180 transition-transform text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                 </summary>
+                 <div class="p-5 pt-0 h-48 w-full">
+                     <canvas id="dailySmokeChart" class="w-full h-full"></canvas>
+                 </div>
+             </details>
+
+             <!-- Footer / Auth -->
+             <div class="mt-4 mb-20">
+                <button id="signInGoogleButton" class="w-full glass-panel py-4 px-6 rounded-2xl text-slate-300 font-medium hover:bg-white/5 transition flex items-center justify-center gap-3">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-5 h-5 opacity-80">
-                    Увійти через Google
+                    <span id="signInText">Увійти через Google</span>
                 </button>
-                <!-- Кнопка для виходу -->
-                <button id="signOutButton" class="w-full bg-slate-800/50 hover:bg-slate-800 text-slate-400 text-sm font-medium py-3 px-4 rounded-xl transition hidden">
+                <button id="signOutButton" class="w-full text-slate-500 text-sm font-medium hover:text-slate-300 transition hidden py-2">
                     Вийти з акаунту
                 </button>
-            </div>
+             </div>
         </div>
 
+        <!-- Settings View (Modal) -->
+        <div id="settings-view" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl p-6 overflow-y-auto fade-in">
+             <div class="max-w-lg mx-auto mt-10">
+                <div class="flex items-center justify-between mb-10">
+                     <h2 class="text-2xl font-black text-white">Налаштування</h2>
+                     <button id="closeSettingsButton" class="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
 
-        <!-- Settings View (Modal-like) -->
-        <div id="settings-view" class="hidden absolute top-0 left-0 w-full min-h-full bg-slate-900 z-50 p-6 rounded-none fade-in">
-            <h2 class="text-2xl font-black mb-8 text-white flex items-center gap-3">
-                 <button id="closeSettingsButton" class="p-2 -ml-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-                Налаштування
-            </h2>
-            <div class="space-y-6 text-left">
-                <div class="settings-item p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                    <label for="packPrice" class="block text-sm font-medium text-slate-300">Ціна пачки (грн)</label>
-                    <input type="number" id="packPrice" class="w-24 p-2 rounded-lg bg-slate-950 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
-                </div>
-                <div class="settings-item p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                    <label for="packSize" class="block text-sm font-medium text-slate-300">Кількість в пачці</label>
-                    <input type="number" id="packSize" class="w-24 p-2 rounded-lg bg-slate-950 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
-                </div>
-                <div class="settings-item p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50 flex-col items-start gap-2">
-                    <label for="oldHabit" class="block text-sm font-medium text-slate-300">Скільки курив раніше (шт/день)</label>
-                    <div class="flex items-center justify-between w-full">
-                         <span id="oldHabitMoney" class="text-slate-500 text-xs font-mono">0.00 грн</span>
-                        <input type="number" id="oldHabit" class="w-24 p-2 rounded-lg bg-slate-950 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
+                <div class="space-y-4">
+                    <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                        <label for="packPrice" class="block text-sm font-medium text-slate-300">Ціна пачки (грн)</label>
+                        <input type="number" id="packPrice" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
+                    </div>
+                    <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                        <label for="packSize" class="block text-sm font-medium text-slate-300">Кількість в пачці</label>
+                        <input type="number" id="packSize" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
+                    </div>
+                    
+                    <div class="glass-panel p-5 rounded-2xl">
+                         <label for="oldHabit" class="block text-sm font-medium text-slate-300 mb-2">Звичка (цигарки/день)</label>
+                         <div class="flex justify-between items-center">
+                             <span id="oldHabitMoney" class="text-emerald-400 text-xs font-mono font-bold">0.00 грн/день</span>
+                             <input type="number" id="oldHabit" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 text-right font-mono">
+                         </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl">
+                        <label for="desiredDailySticks" class="block text-sm font-medium text-slate-300 mb-2">Ціль (цигарки/день)</label>
+                        <div class="flex justify-between items-center">
+                            <span id="desiredDailySticksMoney" class="text-emerald-400 text-xs font-mono font-bold">0.00 грн/день</span>
+                            <input type="number" id="desiredDailySticks" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 text-right font-mono">
+                        </div>
+                   </div>
+
+                    <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                        <label for="smokeIntervalMinutes" class="block text-sm font-medium text-slate-300">Інтервал (хв)</label>
+                        <input type="number" id="smokeIntervalMinutes" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
                     </div>
                 </div>
-                <div class="settings-item p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50 flex-col items-start gap-2">
-                    <label for="desiredDailySticks" class="block text-sm font-medium text-slate-300">Мета (шт/день)</label>
-                    <div class="flex items-center justify-between w-full">
-                        <span id="desiredDailySticksMoney" class="text-slate-500 text-xs font-mono">0.00 грн</span>
-                        <input type="number" id="desiredDailySticks" class="w-24 p-2 rounded-lg bg-slate-950 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono" min="0" step="1">
-                    </div>
+                
+                <div class="mt-8 flex flex-col gap-4">
+                    <button id="saveSettingsButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-4 rounded-2xl transition shadow-lg shadow-emerald-500/20">Зберегти налаштування</button>
+                    <button id="resetDataButton" class="w-full text-red-500 text-sm font-medium py-3 hover:text-red-400">Скинути всі дані</button>
                 </div>
-                <div class="settings-item p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                    <label for="smokeIntervalMinutes" class="block text-sm font-medium text-slate-300">Інтервал (хв)</label>
-                    <input type="number" id="smokeIntervalMinutes" class="w-24 p-2 rounded-lg bg-slate-950 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono" min="1" step="1">
-                </div>
-            </div>
-            
-            <div class="mt-8 flex flex-col gap-4">
-                <button id="saveSettingsButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-4 rounded-2xl transition shadow-lg shadow-emerald-500/20">Зберегти</button>
-                <div class="h-px bg-slate-800 my-2"></div>
-                <button id="resetDataButton" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 hover:text-red-400 font-medium py-3 px-4 rounded-xl transition border border-red-900/30">Скинути всі дані</button>
-            </div>
+             </div>
         </div>
     </div>
     
     <!-- Confirm Modal -->
-    <div id="confirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
-        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-sm w-full text-center relative z-10 shadow-2xl">
-            <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-            </div>
-            <p id="modalText" class="text-lg font-bold text-white mb-6">Ви впевнені?</p>
+    <div id="confirmModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm"></div>
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-sm w-full text-center relative z-10 shadow-2xl skew-y-0 transform">
+            <h3 class="text-xl font-bold text-white mb-4">Ви впевнені?</h3>
+            <p id="modalText" class="text-slate-400 mb-8 leading-relaxed">Цю дію неможливо скасувати.</p>
             <div class="flex gap-4">
                 <button id="confirmNo" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl transition">Ні</button>
-                <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/20">Так</button>
+                <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/20">Так, видалити</button>
             </div>
         </div>
     </div>

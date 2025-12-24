@@ -1,38 +1,101 @@
 body {
     font-family: 'Inter', sans-serif;
-    touch-action: manipulation; /* Запобігає затримкам кліків на мобільних */
-    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    background-color: #020617; /* Slate 950 */
+    overflow-x: hidden; /* Prevent blob overflow */
 }
 
+/* --- Typography Utilities --- */
 .timer-text {
-    font-size: 5rem; /* Slightly smaller for better fit */
+    font-size: 5rem;
     line-height: 1;
-    font-variant-numeric: tabular-nums; /* Prevent jitter when numbers change */
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    letter-spacing: -0.05em;
 }
 
-/* Enhancing the timer size for larger screens if needed */
 @media (min-width: 640px) {
     .timer-text {
-        font-size: 6rem;
+        font-size: 7rem;
     }
 }
 
 .status-text {
-    font-size: 1rem;
-    letter-spacing: 0.15em;
+    font-size: 0.875rem;
+    letter-spacing: 0.2em;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
-/* Animation for page load */
+/* --- Animation Utilities --- */
 .fade-in {
-    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
 }
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Custom Scrollbar for webkit */
+/* --- Aurora Background Animation --- */
+.aurora-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+    animation: auroraMove 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.blob-1 {
+    width: 300px; height: 300px;
+    background: #10b981; /* Emerald */
+    top: -10%; left: -10%;
+    animation-duration: 25s;
+}
+
+.blob-2 {
+    width: 400px; height: 400px;
+    background: #3b82f6; /* Blue */
+    bottom: 20%; right: -20%;
+    animation-duration: 30s;
+    animation-delay: -5s;
+}
+
+.blob-3 {
+    width: 200px; height: 200px;
+    background: #8b5cf6; /* Violet */
+    top: 40%; left: 30%;
+    animation-duration: 20s;
+    animation-delay: -10s;
+    opacity: 0.3;
+}
+
+@keyframes auroraMove {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(30px, 50px) scale(1.1); }
+}
+
+/* --- Glassmorphism Cards --- */
+.glass-panel {
+    background: rgba(30, 41, 59, 0.4); /* Slate 800 / 0.4 */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.glass-panel:hover {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* --- Custom Scrollbar --- */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -41,11 +104,8 @@ body {
     background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
     background: #475569;
+    border-radius: 3px;
 }
 
 /* Settings items flex */
@@ -55,7 +115,6 @@ body {
     justify-content: space-between;
 }
 
-/* Chart container styling updates */
 .chart-container {
     position: relative;
 }
