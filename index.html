@@ -77,22 +77,17 @@
                 </button>
             </div>
             
-            <!-- Hero Section / Health Ring -->
-            <div class="relative mb-6 flex items-center justify-center">
-                <!-- Health Ring SVG -->
-                <div class="relative w-64 h-64">
-                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                        <!-- Track -->
-                        <circle cx="50" cy="50" r="45" fill="none" class="stroke-slate-800" stroke-width="6"></circle>
-                        <!-- Progress -->
-                        <circle id="healthRing" cx="50" cy="50" r="45" fill="none" class="stroke-emerald-500 transition-all duration-1000 ease-out" stroke-width="6" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="0"></circle>
-                    </svg>
+            <!-- Hero Section / Life Tree (Tamagotchi) -->
+            <div class="relative mb-4 flex items-center justify-center min-h-[300px]">
+                <div id="treeContainer">
+                    <!-- Tree SVG will be injected here via JS -->
+                    <div class="toxic-cloud" id="toxicCloud"></div>
                     
                     <!-- Timer & Status Center -->
-                    <div class="absolute inset-0 flex flex-col items-center justify-center z-10">
-                        <span id="timer" class="text-4xl font-black text-white font-mono tracking-wider drop-shadow-xl">GO!</span>
-                        <span id="statusMessage" class="text-[9px] text-slate-400 uppercase tracking-widest mt-1 font-bold">Очікування</span>
-                        <span id="healthValue" class="text-[10px] font-bold text-emerald-400 mt-2 bg-slate-900/50 px-2 py-0.5 rounded-full border border-emerald-500/20">Health: 100%</span>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+                        <span id="timer" class="timer-text drop-shadow-2xl">GO!</span>
+                        <span id="statusMessage" class="status-text mt-2">Очікування</span>
+                        <div id="healthValue" class="text-[10px] font-black text-primary-glow mt-3 bg-surface-glass px-3 py-1 rounded-full border border-white/5 backdrop-blur-md">Health: 100%</div>
                     </div>
                 </div>
             </div>
