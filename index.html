@@ -39,6 +39,17 @@
             }
         }
     </script>
+    <!-- Hidden SVG for Filters logic. logic. logic. -->
+    <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
+        <filter id="blackToAlpha">
+            <feColorMatrix type="matrix" values="
+                1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                2 2 2 0 -0.05
+            " />
+        </filter>
+    </svg>
 </head>
 <!-- Changed background to a gradient -->
 <body class="bg-slate-950 text-white flex items-center justify-center min-h-screen p-4 selection:bg-emerald-500 selection:text-white overflow-x-hidden relative">
