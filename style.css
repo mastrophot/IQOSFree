@@ -1,0 +1,61 @@
+body {
+    font-family: 'Inter', sans-serif;
+    touch-action: manipulation; /* Запобігає затримкам кліків на мобільних */
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+}
+
+.timer-text {
+    font-size: 5rem; /* Slightly smaller for better fit */
+    line-height: 1;
+    font-variant-numeric: tabular-nums; /* Prevent jitter when numbers change */
+}
+
+/* Enhancing the timer size for larger screens if needed */
+@media (min-width: 640px) {
+    .timer-text {
+        font-size: 6rem;
+    }
+}
+
+.status-text {
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+}
+
+/* Animation for page load */
+.fade-in {
+    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Custom Scrollbar for webkit */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* Settings items flex */
+.settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Chart container styling updates */
+.chart-container {
+    position: relative;
+}
