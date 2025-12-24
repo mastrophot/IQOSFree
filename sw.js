@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iqosfree-v30';
+const CACHE_NAME = 'iqosfree-v31';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -25,24 +25,19 @@ self.addEventListener('install', (event) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
+  self.skipWaiting(); // Force active immediately
 });
 
 self.addEventListener('fetch', (event) => {
-  // Simple cache-first strategy
+  // Simple cache-first strategy for static assets, but network-first for logic if needed
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Return cached response if found
-      if (response) {
-        return response;
-      }
-      // Otherwise fetch from network
-      return fetch(event.request);
+      return response || fetch(event.request);
     })
   );
 });
 
 self.addEventListener('activate', (event) => {
-  // Clean up old caches
   event.waitUntil(
       caches.keys().then((cacheNames) => {
           return Promise.all(
@@ -54,6 +49,7 @@ self.addEventListener('activate', (event) => {
           );
       })
   );
+  self.clients.claim(); // Take control of all clients immediately
 });
 
 // PWA Widgets event listener (Experimental Android/Windows support) logic.
