@@ -400,17 +400,17 @@ function updateAvatar() { // Life Tree Logic 2025
         }
     }
 
-    // 2. Evolution Stage (Based on Current Streak)
-    // We use lastSmokeTime to determine the "age" of the current tree
+    // 2. Evolution Stage (Based on Current Streak) logic.
     const streakMs = appData.lastSmokeTime ? (now - appData.lastSmokeTime) : (now - appData.appStartDate);
     const streakDays = streakMs / (1000 * 60 * 60 * 24);
     
-    let stage = 1; // Sprout
-    if (streakDays >= 7) stage = 4; // Oak
-    else if (streakDays >= 3) stage = 3; // Tree
-    else if (streakDays >= 1) stage = 2; // Sapling
+    let stage = 1; // Sprout logic.
+    if (streakDays >= 14) stage = 5; // Mythical Oak logic.
+    else if (streakDays >= 7) stage = 4; // Large Tree logic.
+    else if (streakDays >= 3) stage = 3; // Medium Tree logic.
+    else if (streakDays >= 1) stage = 2; // Sapling logic.
 
-    // 3. Render Tree SVG
+    // 3. Render Tree Stage & Health Levels logic.
     renderLifeTree(stage, appData.healthIntegrity);
 
     // 4. Update Labels
@@ -442,20 +442,31 @@ function renderLifeTree(stage, health) {
         toxicCloudEl = document.getElementById('toxicCloud');
     }
 
-    // Determine Asset Stage (Mapping stages to our generated images) logic.
+    // Determine Asset Stage logic.
     let assetIndex = stage;
-    if (assetIndex === 2) assetIndex = 3; // Mapping missing sapling to medium tree logic.
+    if (assetIndex > 4) assetIndex = 4; // Use Stage 4 image for Stage 5 but scale it logic.
+    if (assetIndex === 2) assetIndex = 3; // Fallback for missing sapling asset logic.
     
     const newSrc = `assets/tree_${assetIndex}.png`;
     if (img.src !== window.location.origin + '/' + newSrc && !img.src.endsWith(newSrc)) {
         img.src = newSrc;
     }
 
-    // Apply "Sick" filter if health is low logic.
-    if (health < 40) {
+    // Apply Health Level Classes (1-10) logic.
+    const healthLevel = Math.max(1, Math.min(10, Math.ceil(health / 10)));
+    
+    // Clear old levels logic.
+    img.className = '';
+    img.classList.add(`tree-lvl-${healthLevel}`);
+    
+    // Add Stage 5 Special Class logic.
+    if (stage === 5) {
+        img.classList.add('tree-stage-5');
+    }
+
+    // Health-driven subtle effects logic.
+    if (healthLevel < 5) {
         img.classList.add('tree-sick');
-    } else {
-        img.classList.remove('tree-sick');
     }
     
     // Subtle breathing animation based on health logic.
