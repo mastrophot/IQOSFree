@@ -285,3 +285,18 @@ body {
     from { transform: scale(0.8); opacity: 0.2; }
     to { transform: scale(1.2); opacity: 0.6; }
 }
+
+/* Leaf Fall Animation 2025 */
+.leaf-falling {
+    animation: leafFall 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    pointer-events: none;
+}
+
+@keyframes leafFall {
+    0% { transform: translateY(0) rotate(0); opacity: 1; }
+    20% { transform: translateY(10px) translateX(10px) rotate(45deg); opacity: 1; }
+    40% { transform: translateY(30px) translateX(-10px) rotate(90deg); opacity: 0.8; }
+    60% { transform: translateY(60px) translateX(10px) rotate(135deg); opacity: 0.6; }
+    80% { transform: translateY(100px) translateX(-10px) rotate(180deg); opacity: 0.3; }
+    100% { transform: translateY(150px) rotate(220deg); opacity: 0; }
+}

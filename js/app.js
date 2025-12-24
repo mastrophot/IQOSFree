@@ -434,56 +434,99 @@ function renderLifeTree(stage, health) {
     
     if (!svg) {
         svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 200 200");
+        svg.setAttribute("viewBox", "0 0 240 240");
         svg.setAttribute("class", "w-full h-full relative z-0");
         container.appendChild(svg);
     }
 
-    // Dynamic Trunk based on stage
-    const trunkWidth = 10 + (stage * 5);
-    const trunkHeight = 40 + (stage * 15);
-    const trunkPath = `M ${100 - trunkWidth/2} 180 L ${100 + trunkWidth/2} 180 L ${100 + trunkWidth/4} ${180 - trunkHeight} L ${100 - trunkWidth/4} ${180 - trunkHeight} Z`;
+    // 1. Define Colors & Gradients logic.
+    const isSick = health < 40;
+    const foliageColor = isSick ? 'oklch(65% 0.15 70)' : 'oklch(75% 0.18 165)';
+    const foliageDark = isSick ? 'oklch(50% 0.12 70)' : 'oklch(60% 0.15 165)';
+    const trunkColor = 'oklch(35% 0.05 45)';
 
-    const leafCount = 20; // 5% each
-    const visibleLeaves = Math.floor(health / 5);
-    
-    // Use the Design Tokens for colors
     let innerHTML = `
         <defs>
-            <radialGradient id="leafGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" style="stop-color:var(--color-primary);stop-opacity:1" />
-                <stop offset="100%" style="stop-color:oklch(60% 0.15 165);stop-opacity:1" />
+            <radialGradient id="foliageGrad" cx="40%" cy="40%" r="60%">
+                <stop offset="0%" style="stop-color:${foliageColor};" />
+                <stop offset="100%" style="stop-color:${foliageDark};" />
             </radialGradient>
+            <filter id="softBlur" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+            </filter>
         </defs>
-        <path class="tree-trunk" d="${trunkPath}" />
     `;
 
-    // Generate leaves in a circular crown
-    const radius = 25 + (stage * 12);
-    const centerX = 100;
-    const centerY = 180 - trunkHeight;
+    // 2. Trunk Design (Flared and textured) logic.
+    const trunkW = 16 + (stage * 6);
+    const trunkH = 50 + (stage * 20);
+    const baseY = 210;
+    const topY = baseY - trunkH;
+    
+    // More organic trunk path logic.
+    const trunkPath = `
+        M ${120 - trunkW/1.2} ${baseY} 
+        Q ${120 - trunkW} ${baseY + 10} ${120 - trunkW*1.5} ${baseY + 15}
+        L ${120 + trunkW*1.5} ${baseY + 15}
+        Q ${120 + trunkW} ${baseY + 10} ${120 + trunkW/1.2} ${baseY}
+        L ${120 + trunkW/3} ${topY}
+        Q ${120} ${topY - 10} ${120 - trunkW/3} ${topY}
+        Z
+    `;
+    
+    innerHTML += `<path class="tree-trunk" d="${trunkPath}" fill="${trunkColor}" />`;
+    
+    // Bark texture (simple vertical lines) logic.
+    for(let j=0; j<3; j++) {
+        const lineX = 120 - (trunkW/4) + (j * (trunkW/4));
+        innerHTML += `<path d="M ${lineX} ${baseY} Q ${lineX + (Math.random()*4-2)} ${baseY-trunkH/2} ${lineX} ${topY+10}" stroke="oklch(0% 0 0 / 15%)" stroke-width="2" fill="none" opacity="0.4" />`;
+    }
 
-    for (let i = 0; i < leafCount; i++) {
-        const angle = (i / leafCount) * Math.PI * 2;
-        // Add a bit of randomness to position for organic look but keep it deterministic-ish
-        const seed = i * 1.5;
-        const x = centerX + Math.cos(angle) * (radius * (0.7 + Math.sin(seed) * 0.3));
-        const y = centerY + Math.sin(angle) * (radius * (0.7 + Math.cos(seed) * 0.3));
-        const isVisible = i < visibleLeaves;
-        const leafSize = 10 + (stage * 2);
+    // 3. Fluffy Canopy Blobs logic.
+    // Each blob is an overlapping cloud section logic.
+    const blobCount = 3 + (stage * 2);
+    const radius = 30 + (stage * 12);
+    const centerX = 120;
+    const centerY = topY + 10;
+    
+    const visiblePercent = health / 100;
+    const leavesToRender = Math.floor(visiblePercent * blobCount);
+
+    for (let i = 0; i < blobCount; i++) {
+        const angle = (i / blobCount) * Math.PI * 2 - Math.PI/2;
+        const dist = radius * 0.7;
+        const bx = centerX + Math.cos(angle) * dist;
+        const by = centerY + Math.sin(angle) * (dist * 0.8);
+        const bRadius = radius * (0.8 + Math.sin(i)*0.2);
         
-        const opacity = isVisible ? 1 : 0;
-        const scale = isVisible ? 1 : 0.3;
-        const fill = health < 40 ? 'var(--color-warning)' : 'url(#leafGrad)';
+        const isVisible = i < leavesToRender || i === 0; // Center blob always partially visible logic.
+        const opacity = isVisible ? 1 : 0.2;
+        const scale = isVisible ? 1 : 0.5;
 
+        // The Cloud Blob logic.
         innerHTML += `
-            <circle class="tree-leaf" cx="${x}" cy="${y}" r="${leafSize}" 
-                    fill="${fill}" 
-                    style="opacity:${opacity}; transform: scale(${scale});" />
+            <g style="transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); transform: translate(${bx}px, ${by}px) scale(${scale}); opacity: ${opacity}">
+                <circle cx="0" cy="0" r="${bRadius}" fill="url(#foliageGrad)" />
+                <!-- Small Leaves on top of blob -->
+                ${renderLeafParticles(bRadius, isSick)}
+            </g>
         `;
     }
 
     svg.innerHTML = innerHTML;
+}
+
+function renderLeafParticles(radius, isSick) {
+    let leaves = '';
+    const leafColor = isSick ? 'oklch(55% 0.12 75)' : 'oklch(85% 0.15 165)';
+    for(let l=0; l<4; l++) {
+        const la = (l/4) * Math.PI * 2;
+        const lx = Math.cos(la) * (radius * 0.6);
+        const ly = Math.sin(la) * (radius * 0.6);
+        const rot = (la * 180 / Math.PI) + 45;
+        leaves += `<ellipse cx="${lx}" cy="${ly}" rx="6" ry="3" fill="${leafColor}" transform="rotate(${rot} ${lx} ${ly})" opacity="0.8" />`;
+    }
+    return leaves;
 }
 
 function updateGlobalStats() {
@@ -533,6 +576,30 @@ function handleChartModeClick(e) {
     updateUI();
 }
 
+function triggerLeafFall(count = 5) {
+    if (!treeContainerEl) return;
+    
+    for (let i = 0; i < count; i++) {
+        const leaf = document.createElement('div');
+        leaf.className = 'leaf-falling absolute';
+        
+        // Random start position within tree canopy area logic.
+        const x = 110 + (Math.random() * 60 - 30);
+        const y = 80 + (Math.random() * 40 - 20);
+        
+        leaf.style.left = `${x}px`;
+        leaf.style.top = `${y}px`;
+        leaf.style.width = '12px';
+        leaf.style.height = '6px';
+        leaf.style.borderRadius = '50%';
+        leaf.style.background = 'oklch(60% 0.15 165)';
+        leaf.style.zIndex = '5';
+        
+        treeContainerEl.appendChild(leaf);
+        setTimeout(() => leaf.remove(), 2000);
+    }
+}
+
 function handleSmoke(type = 'regular') {
     console.log(`[handleSmoke] ${type} smoke button clicked!`);
     
@@ -544,10 +611,13 @@ function handleSmoke(type = 'regular') {
         treeContainerEl.classList.add(shakeClass);
         toxicCloudEl.classList.add('active');
         
+        // Trigger leaf particles logic.
+        triggerLeafFall(isEmergency ? 12 : 5);
+        
         setTimeout(() => {
             treeContainerEl.classList.remove(shakeClass);
             toxicCloudEl.classList.remove('active');
-        }, 1000);
+        }, 1200);
     }
 
     // Integrity Deduction Logic (User custom: Emergency is HEAVIER)
