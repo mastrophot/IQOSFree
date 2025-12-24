@@ -471,53 +471,6 @@ function renderLifeTree(stage, health) {
     // Subtle breathing animation based on health
     const scale = 0.95 + (health / 100) * 0.1;
     img.style.transform = `scale(${scale})`;
-
-    // Process transparency on load
-    if (!img.dataset.processed || img.dataset.src !== newSrc) {
-        applyTransparency(img, newSrc);
-    }
-}
-
-/**
- * Procedurally removes black background from images using Canvas.
- * This ensures transparency even if CSS filters or PNG encoding fail.
- */
-function applyTransparency(img, src) {
-    const tempImg = new Image();
-    tempImg.crossOrigin = "anonymous";
-    tempImg.src = src;
-    tempImg.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = tempImg.width;
-        canvas.height = tempImg.height;
-        ctx.drawImage(tempImg, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        // Iterate through pixels and set alpha to 0 for near-black pixels
-        // Increased threshold to 50 to capture compression artifacts
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            
-            // If the pixel is dark (luminance-based threshold)
-            const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-            if (luminance < 55) {
-                // Smooth falloff for edges
-                data[i + 3] = Math.max(0, (luminance - 20) * 4);
-                if (luminance < 25) data[i + 3] = 0;
-            }
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-        img.src = canvas.toDataURL("image/png");
-        img.dataset.processed = "true";
-        img.dataset.src = src;
-        console.log(`[Transparency] Processed ${src} with threshold logic. logic.`);
-    };
 }
 
 // Removing unused helper function logic.
