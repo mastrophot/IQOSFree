@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iqosfree-v31';
+const CACHE_NAME = 'iqosfree-v32';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -15,7 +15,10 @@ const ASSETS_TO_CACHE = [
   './assets/tree_3.png',
   './assets/tree_4.png',
   'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/chart.js'
+  'https://cdn.jsdelivr.net/npm/chart.js',
+  'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js',
+  'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'
 ];
 
 self.addEventListener('install', (event) => {

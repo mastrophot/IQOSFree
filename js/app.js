@@ -452,7 +452,6 @@ async function getTransparentTree(src) {
     
     return new Promise((resolve) => {
         const tempImg = new Image();
-        tempImg.crossOrigin = "anonymous";
         tempImg.src = src;
         tempImg.onload = () => {
             const canvas = document.createElement('canvas');
