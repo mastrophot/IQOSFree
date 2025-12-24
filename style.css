@@ -8,7 +8,7 @@ body {
 
 /* --- Typography Utilities --- */
 .timer-text {
-    font-size: 5rem;
+    font-size: 4rem;
     line-height: 1;
     font-variant-numeric: tabular-nums;
     font-weight: 800;
@@ -17,7 +17,7 @@ body {
 
 @media (min-width: 640px) {
     .timer-text {
-        font-size: 7rem;
+        font-size: 5.5rem;
     }
 }
 
@@ -48,20 +48,20 @@ body {
     position: absolute;
     border-radius: 50%;
     filter: blur(80px);
-    opacity: 0.4;
+    opacity: 0.25; /* Reduced from 0.4 */
     animation: auroraMove 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .blob-1 {
     width: 300px; height: 300px;
-    background: #10b981; /* Emerald */
+    background: #059669; /* Darker Emerald */
     top: -10%; left: -10%;
     animation-duration: 25s;
 }
 
 .blob-2 {
     width: 400px; height: 400px;
-    background: #3b82f6; /* Blue */
+    background: #1d4ed8; /* Darker Blue */
     bottom: 20%; right: -20%;
     animation-duration: 30s;
     animation-delay: -5s;
@@ -69,11 +69,11 @@ body {
 
 .blob-3 {
     width: 200px; height: 200px;
-    background: #8b5cf6; /* Violet */
+    background: #7c3aed; /* Darker Violet */
     top: 40%; left: 30%;
     animation-duration: 20s;
     animation-delay: -10s;
-    opacity: 0.3;
+    opacity: 0.2;
 }
 
 @keyframes auroraMove {
