@@ -455,23 +455,64 @@ function renderLifeTree(stage, health) {
     // Apply Health Level Classes (1-10) logic.
     const healthLevel = Math.max(1, Math.min(10, Math.ceil(health / 10)));
     
-    // Clear old levels logic.
+    // Clear old levels
     img.className = '';
     img.classList.add(`tree-lvl-${healthLevel}`);
     
-    // Add Stage 5 Special Class logic.
     if (stage === 5) {
         img.classList.add('tree-stage-5');
     }
 
-    // Health-driven subtle effects logic.
+    // Health-driven subtle effects
     if (healthLevel < 5) {
         img.classList.add('tree-sick');
     }
     
-    // Subtle breathing animation based on health logic.
+    // Subtle breathing animation based on health
     const scale = 0.95 + (health / 100) * 0.1;
     img.style.transform = `scale(${scale})`;
+
+    // Process transparency on load
+    if (!img.dataset.processed || img.dataset.src !== newSrc) {
+        applyTransparency(img, newSrc);
+    }
+}
+
+/**
+ * Procedurally removes black background from images using Canvas.
+ * This ensures transparency even if CSS filters or PNG encoding fail.
+ */
+function applyTransparency(img, src) {
+    const tempImg = new Image();
+    tempImg.crossOrigin = "anonymous";
+    tempImg.src = src;
+    tempImg.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = tempImg.width;
+        canvas.height = tempImg.height;
+        ctx.drawImage(tempImg, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Iterate through pixels and set alpha to 0 for near-black pixels
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // If the pixel is very dark (r,g,b < 30), make it transparent
+            if (r < 35 && g < 35 && b < 35) {
+                data[i + 3] = 0;
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        img.src = canvas.toDataURL();
+        img.dataset.processed = "true";
+        img.dataset.src = src;
+    };
 }
 
 // Removing unused helper function logic.
