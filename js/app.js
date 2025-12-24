@@ -26,7 +26,8 @@ const getDefaultAppData = () => ({
     longestSmokeFreeStreakHours: 0,
     appStartDate: new Date().setHours(0,0,0,0),
     healthIntegrity: 100,
-    lastIntegrityUpdate: Date.now()
+    lastIntegrityUpdate: Date.now(),
+    evolutionPointsMs: 0 // New persistent growth experience
 });
 
 let appData = getDefaultAppData();
@@ -106,6 +107,15 @@ async function loadData() {
             // Health Migration/Fallbacks
             appData.healthIntegrity = loadedData.healthIntegrity ?? 100;
             appData.lastIntegrityUpdate = loadedData.lastIntegrityUpdate || Date.now();
+            
+            // Evolution Points Migration (Bio-Core 2.0)
+            appData.evolutionPointsMs = loadedData.evolutionPointsMs;
+            if (appData.evolutionPointsMs === undefined) {
+                // Initialize starting progress based on current streak
+                const now = Date.now();
+                const currentStreakMs = appData.lastSmokeTime ? (now - appData.lastSmokeTime) : (now - appData.appStartDate);
+                appData.evolutionPointsMs = Math.max(0, currentStreakMs);
+            }
 
             // Date Migration: If appStartDate is missing or history exists MUCH earlier, prefer first smoke date
             const savedStartDate = loadedData.appStartDate || 0;
@@ -377,47 +387,48 @@ function updateInsights() {
 
 
 
-function updateAvatar() { // Life Tree Logic 2025
+function updateAvatar() { // Progressive Life Tree Logic 2025
     if (!treeContainerEl || !healthValueEl) return;
     
-    // Safety Fallback for NaN
-    appData.healthIntegrity = Number(appData.healthIntegrity);
-    appData.lastIntegrityUpdate = Number(appData.lastIntegrityUpdate);
+    // Safety Fallbacks
+    appData.healthIntegrity = Number(appData.healthIntegrity) || 100;
+    appData.evolutionPointsMs = Number(appData.evolutionPointsMs) || 0;
+    appData.lastIntegrityUpdate = Number(appData.lastIntegrityUpdate) || Date.now();
     
-    if (isNaN(appData.healthIntegrity)) appData.healthIntegrity = 100;
-    if (isNaN(appData.lastIntegrityUpdate)) appData.lastIntegrityUpdate = Date.now();
-
-    // 1. Regenerate Health (1% per hour)
     const now = Date.now();
-    const lastUpdate = appData.lastIntegrityUpdate || now;
-    const diffHours = (now - lastUpdate) / (1000 * 60 * 60);
+    const diffMs = now - appData.lastIntegrityUpdate;
+    const diffHours = diffMs / (1000 * 60 * 60);
     
-    if (diffHours > 0) {
-        const regenAmount = diffHours * 1; 
+    if (diffMs > 0) {
+        // 1. Regenerate Health (User request: +10% per hour)
+        const regenAmount = diffHours * 10; 
         if (appData.healthIntegrity < 100) {
             appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
-            appData.lastIntegrityUpdate = now;
         }
+
+        // 2. Continuous Growth (Tree gains "XP" every second)
+        // This xp determines the stage, but it will be reduced when smoking
+        appData.evolutionPointsMs += diffMs;
+        
+        appData.lastIntegrityUpdate = now;
     }
 
-    // 2. Evolution Stage (Based on Current Streak) logic.
-    const streakMs = appData.lastSmokeTime ? (now - appData.lastSmokeTime) : (now - appData.appStartDate);
-    const streakDays = streakMs / (1000 * 60 * 60 * 24);
+    // 3. Evolution Stage (Based on Evolution Points / Experience)
+    const evolutionDays = appData.evolutionPointsMs / (1000 * 60 * 60 * 24);
     
-    let stage = 1; // Sprout logic.
-    if (streakDays >= 14) stage = 5; // Mythical Oak logic.
-    else if (streakDays >= 7) stage = 4; // Large Tree logic.
-    else if (streakDays >= 3) stage = 3; // Medium Tree logic.
-    else if (streakDays >= 1) stage = 2; // Sapling logic.
+    let stage = 1; // Sprout (0-1 days)
+    if (evolutionDays >= 14) stage = 5; // Mythical Oak (14+ days)
+    else if (evolutionDays >= 7) stage = 4; // Large Tree (7-14 days)
+    else if (evolutionDays >= 3) stage = 3; // Medium Tree (3-7 days)
+    else if (evolutionDays >= 1) stage = 2; // Sapling (1-3 days)
 
-    // 3. Render Tree Stage & Health Levels logic.
+    // 4. Render Tree Stage & Health Levels
     renderLifeTree(stage, appData.healthIntegrity);
 
-    // 4. Update Labels
+    // 5. Update Labels
     const health = Math.round(appData.healthIntegrity);
     healthValueEl.textContent = `Дерево Життя: ${health}%`;
     
-    // Dynamic styling for health label
     healthValueEl.classList.remove('text-primary-glow', 'text-warning', 'text-error', 'border-emerald-500/20', 'border-warning/20', 'border-error/20');
     if (health > 70) {
         healthValueEl.classList.add('text-primary-glow', 'border-emerald-500/20');
@@ -595,9 +606,15 @@ function handleSmoke(type = 'regular') {
         }, 1200);
     }
 
-    // Integrity Deduction Logic (User custom: Emergency is HEAVIER)
-    const damage = type === 'regular' ? 10 : 25;
+    // Integrity Deduction Logic (User request: Regular -5, Emergency -10)
+    const damage = type === 'regular' ? 5 : 10;
     appData.healthIntegrity = Math.max(0, appData.healthIntegrity - damage);
+    
+    // Growth Slowdown Logic (Instead of resetting to Stage 1)
+    // Regular penalty: 6 hours of progress
+    // Emergency penalty: 12 hours of progress
+    const msPenalty = type === 'regular' ? (1000 * 60 * 60 * 6) : (1000 * 60 * 60 * 12);
+    appData.evolutionPointsMs = Math.max(0, appData.evolutionPointsMs - msPenalty);
     
     appData.lastSmokeTime = new Date().getTime();
     appData.smokeHistory.push({ timestamp: appData.lastSmokeTime, type: type });
