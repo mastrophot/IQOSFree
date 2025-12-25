@@ -291,13 +291,43 @@
 
     <script type="module" src="js/app.js"></script>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration with Aggressive Update -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker registered', reg))
-            .catch(err => console.log('Service Worker registration failed', err));
+        window.addEventListener('load', async () => {
+          try {
+            const reg = await navigator.serviceWorker.register('./sw.js');
+            console.log('Service Worker registered', reg);
+            
+            // Check for updates immediately
+            reg.update();
+            
+            // Listen for new SW and force update
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              console.log('New SW found, state:', newWorker.state);
+              
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New SW available, reload to activate
+                  console.log('New SW installed, reloading...');
+                  window.location.reload();
+                }
+              });
+            });
+            
+            // Force refresh on controller change
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              if (!refreshing) {
+                refreshing = true;
+                window.location.reload();
+              }
+            });
+            
+          } catch (err) {
+            console.log('Service Worker registration failed', err);
+          }
         });
       }
     </script>
