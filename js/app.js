@@ -49,6 +49,42 @@ function saveLocalData(data) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
 }
 
+// Backup system to prevent data loss
+const BACKUP_KEY = `${LOCAL_STORAGE_KEY}_backup`;
+
+function saveBackup(data) {
+    if (!data || !data.smokeHistory || data.smokeHistory.length === 0) return;
+    // Only save backup if data has meaningful content
+    localStorage.setItem(BACKUP_KEY, JSON.stringify({
+        ...data,
+        backupTime: Date.now()
+    }));
+    console.log('[Backup] Data backed up successfully');
+}
+
+function loadBackup() {
+    const backup = localStorage.getItem(BACKUP_KEY);
+    if (backup) {
+        try {
+            return JSON.parse(backup);
+        } catch (e) {
+            console.error('[Backup] Error parsing backup', e);
+        }
+    }
+    return null;
+}
+
+function shouldRestoreFromBackup(currentData, backupData) {
+    if (!backupData) return false;
+    if (!currentData || !currentData.smokeHistory) return true;
+    
+    // Restore if backup has more history AND is not too old (less than 7 days)
+    const backupAge = Date.now() - (backupData.backupTime || 0);
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    
+    return backupData.smokeHistory.length > currentData.smokeHistory.length && backupAge < sevenDays;
+}
+
 let appData = loadLocalData() || getDefaultAppData();
 
 let eventListenersAttached = false;
@@ -105,6 +141,12 @@ async function loadData() {
         loader.classList.add('hidden');
         appContainer.classList.remove('hidden');
         return;
+    }
+
+    // CRITICAL: Save backup BEFORE any sync operation
+    const currentLocalData = loadLocalData();
+    if (currentLocalData && currentLocalData.smokeHistory && currentLocalData.smokeHistory.length > 0) {
+        saveBackup(currentLocalData);
     }
 
     console.log(`[loadData] Loading data for userId: ${userId}`);
@@ -169,6 +211,15 @@ async function loadData() {
             appData.appStartDate = startOfDayOfFirstSmoke;
         } else {
             appData.appStartDate = new Date(Math.min(savedStartDate, startOfDayOfFirstSmoke)).setHours(0,0,0,0);
+        }
+
+        // CRITICAL: Check if we lost data and should restore from backup
+        const backup = loadBackup();
+        if (shouldRestoreFromBackup(appData, backup)) {
+            console.warn('[loadData] Data loss detected! Restoring from backup...');
+            console.log(`[loadData] Current: ${appData.smokeHistory.length} entries, Backup: ${backup.smokeHistory.length} entries`);
+            appData = { ...getDefaultAppData(), ...backup };
+            delete appData.backupTime; // Remove backup metadata
         }
 
         saveLocalData(appData);
