@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iqosfree-v32';
+const CACHE_NAME = 'iqosfree-v33';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
