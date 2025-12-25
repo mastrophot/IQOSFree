@@ -162,27 +162,71 @@ async function loadData() {
 
         const localData = loadLocalData();
 
-        // Merge logic: Most recent wins based on updatedAt if available,
-        // or just prioritize remote if local doesn't exist.
-        if (remoteData) {
+        // NEW: Smart merge logic that COMBINES data from both sources
+        if (remoteData && localData) {
+            console.log("[loadData] Both remote and local data exist. MERGING...");
+            
+            // 1. Start with defaults
+            appData = getDefaultAppData();
+            
+            // 2. Merge smokeHistory - combine and deduplicate by timestamp
+            const localHistory = (localData.smokeHistory || []).map(s => 
+                typeof s === 'number' ? { timestamp: s, type: 'regular' } : s
+            );
+            const remoteHistory = (remoteData.smokeHistory || []).map(s => 
+                typeof s === 'number' ? { timestamp: s, type: 'regular' } : s
+            );
+            
+            // Combine and deduplicate (same timestamp = same smoke)
+            const allSmokes = [...localHistory, ...remoteHistory];
+            const uniqueSmokes = [];
+            const seenTimestamps = new Set();
+            
+            for (const smoke of allSmokes) {
+                if (!seenTimestamps.has(smoke.timestamp)) {
+                    seenTimestamps.add(smoke.timestamp);
+                    uniqueSmokes.push(smoke);
+                }
+            }
+            
+            // Sort by timestamp
+            uniqueSmokes.sort((a, b) => a.timestamp - b.timestamp);
+            appData.smokeHistory = uniqueSmokes;
+            
+            console.log(`[loadData] Merged history: Local=${localHistory.length}, Remote=${remoteHistory.length}, Combined=${uniqueSmokes.length}`);
+            
+            // 3. Use most recent settings (by updatedAt)
             const remoteUpdateTime = remoteData.updatedAt || 0;
-            const localUpdateTime = localData ? (localData.updatedAt || 0) : 0;
-
+            const localUpdateTime = localData.updatedAt || 0;
+            
             if (remoteUpdateTime > localUpdateTime) {
-                console.log("[loadData] Remote data is strictly newer. Using remote.");
-                appData = { ...getDefaultAppData(), ...remoteData };
+                appData.settings = { ...appData.settings, ...remoteData.settings };
             } else {
-                console.log("[loadData] Local data is newer or equal. Keeping local and syncing to remote.");
-                appData = { ...getDefaultAppData(), ...localData };
-                await saveData(); // Sync local to remote
+                appData.settings = { ...appData.settings, ...localData.settings };
             }
+            
+            // 4. Merge other fields - take the best values
+            appData.lastSmokeTime = Math.max(localData.lastSmokeTime || 0, remoteData.lastSmokeTime || 0) || null;
+            appData.longestSmokeFreeStreakHours = Math.max(localData.longestSmokeFreeStreakHours || 0, remoteData.longestSmokeFreeStreakHours || 0);
+            appData.appStartDate = Math.min(localData.appStartDate || Date.now(), remoteData.appStartDate || Date.now());
+            appData.healthIntegrity = Math.max(localData.healthIntegrity || 0, remoteData.healthIntegrity || 0);
+            appData.evolutionPointsMs = Math.max(localData.evolutionPointsMs || 0, remoteData.evolutionPointsMs || 0);
+            appData.lastIntegrityUpdate = Math.max(localData.lastIntegrityUpdate || 0, remoteData.lastIntegrityUpdate || 0);
+            appData.updatedAt = Date.now();
+            
+            // 5. Sync merged data back to Firebase
+            await saveData();
+            
+        } else if (remoteData) {
+            console.log("[loadData] Only remote data exists. Using remote.");
+            appData = { ...getDefaultAppData(), ...remoteData };
+        } else if (localData) {
+            console.log("[loadData] Only local data exists. Using local and syncing to remote.");
+            appData = { ...getDefaultAppData(), ...localData };
+            await saveData(); 
         } else {
-            console.log("[loadData] No remote data. Using local or default.");
-            if (localData) {
-                appData = { ...getDefaultAppData(), ...localData };
-            } else {
-                appData = getDefaultAppData();
-            }
+            console.log("[loadData] No data anywhere. Using defaults.");
+            appData = getDefaultAppData();
             await saveData(); 
         }
 
