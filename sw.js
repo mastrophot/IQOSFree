@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iqosfree-v36';
+const CACHE_NAME = 'iqosfree-v37';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -32,13 +32,33 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Simple cache-first strategy for static assets, but network-first for logic if needed
+  const url = new URL(event.request.url);
+  
+  // Network-first for JS files to ensure latest sync logic
+  if (url.pathname.endsWith('.js') && url.origin === self.location.origin) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Update cache with fresh response
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+          return response;
+        })
+        .catch(() => caches.match(event.request)) // Fallback to cache if offline
+    );
+    return;
+  }
+  
+  // Cache-first for static assets (images, CSS, etc.)
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
     })
   );
 });
+
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
