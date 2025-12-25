@@ -11,8 +11,8 @@ let app;
 let db;
 let auth;
 
-let userId = null;
-let dataRef = null;
+const LOCAL_STORAGE_KEY = `iqosfree_data_${appId}`;
+
 const getDefaultAppData = () => ({
     lastSmokeTime: null,
     smokeHistory: [],
@@ -27,13 +27,34 @@ const getDefaultAppData = () => ({
     appStartDate: new Date().setHours(0,0,0,0),
     healthIntegrity: 100,
     lastIntegrityUpdate: Date.now(),
-    evolutionPointsMs: 0 // New persistent growth experience
+    evolutionPointsMs: 0,
+    updatedAt: Date.now()
 });
 
-let appData = getDefaultAppData();
+function loadLocalData() {
+    const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (local) {
+        try {
+            return JSON.parse(local);
+        } catch (e) {
+            console.error("Error parsing local data", e);
+        }
+    }
+    return null;
+}
+
+function saveLocalData(data) {
+    if (!data) return;
+    data.updatedAt = Date.now();
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+}
+
+let appData = loadLocalData() || getDefaultAppData();
 
 let eventListenersAttached = false;
 let isInitialAuthCheckComplete = false;
+let lastFirebaseSyncTime = 0;
+const FIREBASE_SYNC_INTERVAL = 30000; // 30 секунд
 
 // --- DOM ELEMENTS ---
 // (Initialized in DOMContentLoaded)
@@ -78,7 +99,7 @@ function showConfirm(text, onConfirm) {
 
 async function loadData() {
     if (!userId) {
-        console.warn("[loadData] userId is null. Using default/local data.");
+        console.warn("[loadData] userId is null. Using local data.");
         updateSettingsInputs(); 
         if (!eventListenersAttached) attachEventListeners();
         loader.classList.add('hidden');
@@ -90,51 +111,67 @@ async function loadData() {
     dataRef = doc(db, `artifacts/${appId}/users/${userId}/smokingData/data`);
     try {
         const docSnap = await getDoc(dataRef);
+        let remoteData = null;
         if (docSnap.exists()) {
-            const loadedData = docSnap.data();
-            appData.lastSmokeTime = loadedData.lastSmokeTime || null;
-            appData.smokeHistory = (loadedData.smokeHistory || []).map(smoke => {
-                if (typeof smoke === 'number') return { timestamp: smoke, type: 'regular' };
-                return { timestamp: smoke.timestamp, type: smoke.type || 'regular' }; 
-            });
-            // Migrate hours to minutes if needed
-            if (loadedData.settings && loadedData.settings.smokeIntervalHours !== undefined && loadedData.settings.smokeIntervalMinutes === undefined) {
-                loadedData.settings.smokeIntervalMinutes = loadedData.settings.smokeIntervalHours * 60;
-            }
-            appData.settings = { ...appData.settings, ...loadedData.settings };
-            appData.settings.desiredDailySticks = loadedData.settings?.desiredDailySticks ?? 10;
-            
-            // Health Migration/Fallbacks
-            appData.healthIntegrity = loadedData.healthIntegrity ?? 100;
-            appData.lastIntegrityUpdate = loadedData.lastIntegrityUpdate || Date.now();
-            
-            // Evolution Points Migration (Bio-Core 2.0)
-            appData.evolutionPointsMs = loadedData.evolutionPointsMs;
-            if (appData.evolutionPointsMs === undefined) {
-                // Initialize starting progress based on current streak
-                const now = Date.now();
-                const currentStreakMs = appData.lastSmokeTime ? (now - appData.lastSmokeTime) : (now - appData.appStartDate);
-                appData.evolutionPointsMs = Math.max(0, currentStreakMs);
-            }
+            remoteData = docSnap.data();
+        }
 
-            // Date Migration: If appStartDate is missing or history exists MUCH earlier, prefer first smoke date
-            const savedStartDate = loadedData.appStartDate || 0;
-            const firstSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[0].timestamp : Date.now();
-            const startOfDayOfFirstSmoke = new Date(firstSmokeTime).setHours(0,0,0,0);
-            
-            if (savedStartDate === 0) {
-                appData.appStartDate = startOfDayOfFirstSmoke;
+        const localData = loadLocalData();
+
+        // Merge logic: Most recent wins based on updatedAt if available,
+        // or just prioritize remote if local doesn't exist.
+        if (remoteData) {
+            const remoteUpdateTime = remoteData.updatedAt || 0;
+            const localUpdateTime = localData ? (localData.updatedAt || 0) : 0;
+
+            if (remoteUpdateTime > localUpdateTime) {
+                console.log("[loadData] Remote data is strictly newer. Using remote.");
+                appData = { ...getDefaultAppData(), ...remoteData };
             } else {
-                // Ensure the saved date is also normalized to start of day for consistency
-                appData.appStartDate = new Date(Math.min(savedStartDate, startOfDayOfFirstSmoke)).setHours(0,0,0,0);
+                console.log("[loadData] Local data is newer or equal. Keeping local and syncing to remote.");
+                appData = { ...getDefaultAppData(), ...localData };
+                await saveData(); // Sync local to remote
             }
-            
-            appData.longestSmokeFreeStreakHours = loadedData.longestSmokeFreeStreakHours || 0;
         } else {
-            console.log("No such document! Creating default.");
-            appData = getDefaultAppData();
+            console.log("[loadData] No remote data. Using local or default.");
+            if (localData) {
+                appData = { ...getDefaultAppData(), ...localData };
+            } else {
+                appData = getDefaultAppData();
+            }
             await saveData(); 
         }
+
+        // Sanitize History & Migrations
+        appData.smokeHistory = (appData.smokeHistory || []).map(smoke => {
+            if (typeof smoke === 'number') return { timestamp: smoke, type: 'regular' };
+            return { timestamp: smoke.timestamp, type: smoke.type || 'regular' }; 
+        });
+
+        // Migrate hours to minutes if needed
+        if (appData.settings && appData.settings.smokeIntervalHours !== undefined && appData.settings.smokeIntervalMinutes === undefined) {
+            appData.settings.smokeIntervalMinutes = appData.settings.smokeIntervalHours * 60;
+        }
+        
+        // Evolution Points Migration
+        if (appData.evolutionPointsMs === undefined) {
+            const now = Date.now();
+            const currentStreakMs = appData.lastSmokeTime ? (now - appData.lastSmokeTime) : (now - appData.appStartDate);
+            appData.evolutionPointsMs = Math.max(0, currentStreakMs);
+        }
+
+        // Date Migration
+        const savedStartDate = appData.appStartDate || 0;
+        const firstSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[0].timestamp : Date.now();
+        const startOfDayOfFirstSmoke = new Date(firstSmokeTime).setHours(0,0,0,0);
+        
+        if (savedStartDate === 0) {
+            appData.appStartDate = startOfDayOfFirstSmoke;
+        } else {
+            appData.appStartDate = new Date(Math.min(savedStartDate, startOfDayOfFirstSmoke)).setHours(0,0,0,0);
+        }
+
+        saveLocalData(appData);
     } catch (error) {
         console.error("Error loading data: ", error);
         loader.textContent = "Помилка завантаження даних. Спробуйте оновити сторінку.";
@@ -148,12 +185,13 @@ async function loadData() {
 }
 
 async function saveData() {
+    saveLocalData(appData);
     if (!dataRef || !userId) return;
     try {
         await setDoc(dataRef, appData);
-        console.log("Data saved.");
+        console.log("Data saved to Firestore.");
     } catch (error) {
-        console.error("Error saving data: ", error);
+        console.error("Error saving data to Firestore: ", error);
     }
 }
 
@@ -411,6 +449,16 @@ function updateAvatar() { // Progressive Life Tree Logic 2025
         appData.evolutionPointsMs += diffMs;
         
         appData.lastIntegrityUpdate = now;
+        
+        // Зберігаємо прогрес локально щоб не втратити при перезавантаженні
+        // Зберігаємо кожну секунду для надійності
+        saveLocalData(appData);
+        
+        // Періодична синхронізація з Firestore (кожні 30 секунд)
+        if (now - lastFirebaseSyncTime > FIREBASE_SYNC_INTERVAL) {
+            lastFirebaseSyncTime = now;
+            saveData();
+        }
     }
 
     // 3. Evolution Stage (Based on Evolution Points / Experience)
@@ -669,6 +717,7 @@ async function handleResetData() {
     showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
         if (dataRef) await deleteDoc(dataRef);
         appData = getDefaultAppData();
+        saveLocalData(appData);
         await saveData();
         updateSettingsInputs();
         updateUI();
@@ -861,8 +910,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.error("Anon sign-in failed", e);
                 }
             } else {
-                // User signed out, reset to local/anon
-                appData = getDefaultAppData();
+                // User signed out, keep local data for now instead of resetting
+                console.log("User signed out. Preserving local data.");
+                // appData = getDefaultAppData(); // Removed reset to prevent data loss on logout
                 await loadData();
             }
         }
@@ -877,6 +927,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (action === 'emergency') {
         setTimeout(() => handleSmoke('emergency'), 1500);
     }
+
+    // Зберігаємо прогрес при закритті вкладки/браузера
+    window.addEventListener('beforeunload', () => {
+        saveLocalData(appData);
+    });
+
+    // Зберігаємо прогрес коли користувач згортає вкладку або застосунок
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            console.log('[visibilitychange] Saving data before hiding...');
+            saveLocalData(appData);
+            // Force sync to Firebase when going background
+            if (dataRef && userId) {
+                setDoc(dataRef, { ...appData, updatedAt: Date.now() });
+            }
+        }
+    });
 
     setInterval(updateUI, 1000);
 });
