@@ -91,6 +91,8 @@ let eventListenersAttached = false;
 let isInitialAuthCheckComplete = false;
 let lastFirebaseSyncTime = 0;
 const FIREBASE_SYNC_INTERVAL = 30000; // 30 секунд
+let userId = null;
+let dataRef = null;
 
 // --- DOM ELEMENTS ---
 // (Initialized in DOMContentLoaded)
