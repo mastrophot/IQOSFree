@@ -99,7 +99,7 @@ let showUndoUntil = 0; // Reactive Undo Visibility Window
 // --- DOM ELEMENTS ---
 // (Initialized in DOMContentLoaded)
 let loader, appContainer, mainView, settingsView, timerEl, statusMessageEl, accountBadge;
-let smokeButton, undoSmokeButton, emergencySmokeButton, openSettingsButton, closeSettingsButton, saveSettingsButton, resetDataButton, forceSyncButton, deepResetButton;
+let smokeButton, emergencySmokeButton, openSettingsButton, closeSettingsButton, saveSettingsButton, resetDataButton, forceSyncButton, deepResetButton;
 let smokedTodayValueEl, smokedTodayPlannedEl, spentTodayValueEl, spentTodayPlannedEl;
 let smokeFreeStreakEl, longestSmokeFreeStreakEl;
 let balanceCardEl, financialBalanceLabelEl, financialBalanceValueEl, balanceIconEl;
@@ -792,32 +792,6 @@ function handleSmoke(type = 'regular') {
     updateUI();
 }
 
-function handleUndoSmoke() {
-    if (!appData.smokeHistory || appData.smokeHistory.length === 0) return;
-
-    const lastSmoke = appData.smokeHistory.pop();
-    console.log(`[handleUndoSmoke] Undoing ${lastSmoke.type} smoke from ${new Date(lastSmoke.timestamp).toLocaleTimeString()}`);
-
-    // Restore health & evolution points
-    const damage = lastSmoke.type === 'regular' ? 10 : 20;
-    const msPenalty = lastSmoke.type === 'regular' ? (1000 * 60 * 60 * 1) : (1000 * 60 * 60 * 2);
-
-    appData.healthIntegrity = Math.max(0, Math.min(100, appData.healthIntegrity + damage));
-    appData.evolutionPointsMs = Math.max(0, appData.evolutionPointsMs + msPenalty);
-
-    // Re-calculate lastSmokeTime
-    if (appData.smokeHistory.length > 0) {
-        appData.lastSmokeTime = appData.smokeHistory[appData.smokeHistory.length - 1].timestamp;
-    } else {
-        appData.lastSmokeTime = null;
-    }
-
-    appData.updatedAt = Date.now(); // CRITICAL: Bump timestamp for sync
-    showUndoUntil = 0; // Hide immediately after undo
-    saveData();
-    updateUI();
-}
-
 function updateSettingsInputs() {
     packPriceInput.value = appData.settings.packPrice;
     packSizeInput.value = appData.settings.packSize;
@@ -1043,7 +1017,6 @@ async function handleSignOut() {
 
 function attachEventListeners() {
     smokeButton.addEventListener('click', () => handleSmoke('regular'));
-    undoSmokeButton.addEventListener('click', handleUndoSmoke);
     emergencySmokeButton.addEventListener('click', () => handleSmoke('emergency'));
     openSettingsButton.addEventListener('click', toggleSettingsView);
     closeSettingsButton.addEventListener('click', toggleSettingsView);
@@ -1076,7 +1049,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     healthValueEl = document.getElementById('healthValue');
     growthStageEl = document.getElementById('growthStage');
     smokeButton = document.getElementById('smokeButton');
-    undoSmokeButton = document.getElementById('undoSmokeButton');
     emergencySmokeButton = document.getElementById('emergencySmokeButton');
     
     smokedTodayValueEl = document.getElementById('smokedTodayValue');
