@@ -336,3 +336,21 @@ body {
     80% { transform: translateY(100px) translateX(-10px) rotate(180deg); opacity: 0.3; }
     100% { transform: translateY(150px) rotate(220deg); opacity: 0; }
 }
+
+/* --- Reset & Maintenance Styles 2025 --- */
+#resetDataButton:active, #deepResetButton:active {
+    transform: scale(0.98);
+}
+
+#resetDataButton:hover {
+    background-color: oklch(62% 0.22 28 / 30%);
+    border-color: oklch(62% 0.22 28 / 50%);
+}
+
+#confirmModal {
+    z-index: 100;
+}
+
+#confirmModal > div:last-child {
+    box-shadow: 0 20px 50px oklch(0% 0 0 / 80%);
+}

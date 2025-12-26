@@ -115,25 +115,30 @@ let currentChartPeriod = 'day';
 let currentChartMode = 'sticks';
 let confirmModal, modalText, confirmYes, confirmNo;
 
-function showConfirm(text, onConfirm) {
-    modalText.textContent = text;
-    confirmModal.classList.remove('hidden');
-    
-    // Remove old listeners by cloning
-    const newConfirmYes = confirmYes.cloneNode(true);
-    confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
-    confirmYes = newConfirmYes;
-    
-    const newConfirmNo = confirmNo.cloneNode(true);
-    confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
-    confirmNo = newConfirmNo;
+let confirmCallback = null;
 
+function showConfirm(text, onConfirm) {
+    console.log("[showConfirm] Opening modal with text:", text);
+    modalText.textContent = text;
+    confirmCallback = onConfirm;
+    confirmModal.classList.remove('hidden');
+    confirmModal.style.display = 'flex'; // Force display flex just in case
+}
+
+// Global listeners for confirm buttons once in DOMContentLoaded
+function setupConfirmModalListeners() {
     confirmYes.onclick = () => {
-        onConfirm();
+        console.log("[showConfirm] Confirmed");
+        if (confirmCallback) confirmCallback();
         confirmModal.classList.add('hidden');
+        confirmModal.style.display = '';
+        confirmCallback = null;
     };
     confirmNo.onclick = () => {
+        console.log("[showConfirm] Cancelled");
         confirmModal.classList.add('hidden');
+        confirmModal.style.display = '';
+        confirmCallback = null;
     };
 }
 
@@ -789,7 +794,7 @@ function handleUndoSmoke() {
     const damage = lastSmoke.type === 'regular' ? 10 : 20;
     const msPenalty = lastSmoke.type === 'regular' ? (1000 * 60 * 60 * 1) : (1000 * 60 * 60 * 2);
 
-    appData.healthIntegrity = Math.min(100, appData.healthIntegrity + damage);
+    appData.healthIntegrity = Math.max(0, Math.min(100, appData.healthIntegrity + damage));
     appData.evolutionPointsMs = Math.max(0, appData.evolutionPointsMs + msPenalty);
 
     // Re-calculate lastSmokeTime
@@ -799,7 +804,7 @@ function handleUndoSmoke() {
         appData.lastSmokeTime = null;
     }
 
-    appData.updatedAt = Date.now();
+    appData.updatedAt = Date.now(); // CRITICAL: Bump timestamp for sync
     showUndoUntil = 0; // Hide immediately after undo
     saveData();
     updateUI();
@@ -848,6 +853,7 @@ function handleSaveSettings() {
 }
 
 async function handleResetData() {
+    console.log("[handleResetData] Triggered");
     showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
         if (dataRef) await deleteDoc(dataRef);
         appData = getDefaultAppData();
@@ -910,6 +916,7 @@ async function handleForceSync() {
 }
 
 async function handleDeepReset() {
+    console.log("[handleDeepReset] Triggered");
     showConfirm("Це повністю очистить кеш додатку та вийде з акаунту. Ви впевнені?", async () => {
         console.log("[DeepReset] Starting nuclear cleanup...");
         
@@ -1084,6 +1091,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalText = document.getElementById('modalText');
     confirmYes = document.getElementById('confirmYes');
     confirmNo = document.getElementById('confirmNo');
+
+    setupConfirmModalListeners();
 
     // Init Firebase
     try {
