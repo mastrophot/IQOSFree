@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iqosfree-v37';
+const CACHE_NAME = 'iqosfree-v41';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -34,8 +34,9 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
-  // Network-first for JS files to ensure latest sync logic
-  if (url.pathname.endsWith('.js') && url.origin === self.location.origin) {
+  // Network-first for HTML and JS files to ensure fresh data & sync logic
+  if ((url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('.js')) 
+      && url.origin === self.location.origin) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
