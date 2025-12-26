@@ -1160,6 +1160,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 signInGoogleButton.classList.add('hidden'); 
                 signOutButton.classList.remove('hidden'); 
             }
+
+            // --- NUCLEAR SERVER RESET LOGIC ---
+            if (localStorage.getItem('FORCE_FIREBASE_RESET') === 'true') {
+                console.log("[AUTH] NUCLEAR RESET FLAG DETECTED. Wiping Firestore...");
+                updateSyncStatus('syncing');
+                try {
+                    const dataRefForce = doc(db, `artifacts/${appId}/users/${userId}/smokingData/data`);
+                    const nukeData = getDefaultAppData();
+                    nukeData.updatedAt = Date.now() + 3600000; // 1 hour in future to dominate
+                    await setDoc(dataRefForce, nukeData);
+                    localStorage.removeItem('FORCE_FIREBASE_RESET');
+                    console.log("[AUTH] Firestore wiped successfully. Flag cleared.");
+                    updateSyncStatus('online');
+                } catch (e) {
+                    console.error("[AUTH] Firestore wipe failed:", e);
+                    updateSyncStatus('error');
+                }
+            }
+            // ----------------------------------
+
             if (!isInitialAuthCheckComplete || (appData.currentUserId !== userId)) {
                 appData.currentUserId = userId;
                 await loadData(); 
