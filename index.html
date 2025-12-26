@@ -82,7 +82,7 @@
                         <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
                             Кидай Курити
                         </h1>
-                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.3.4</span>
+                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.3.5</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <div id="syncIndicator" class="w-2 h-2 rounded-full bg-slate-700 animate-pulse"></div>
@@ -373,7 +373,7 @@
     <!-- Robust Service Worker Registration -->
     <script>
         const FORCE_FIREBASE_RESET = false;
-        const SW_VERSION = 'v2.3.4';
+        const SW_VERSION = 'v2.3.5';
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -423,5 +423,25 @@
             document.body.appendChild(toast);
         }
     </script>
+    <!-- Undo Notification (Toast) -->
+    <div id="undoNotification" class="fixed bottom-24 left-4 right-4 z-50 transform translate-y-32 opacity-0 transition-all duration-500 pointer-events-none">
+        <div class="bg-slate-800/95 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-white">Вирішили скасувати?</p>
+                    <p class="text-[10px] text-slate-400" id="undoTimerText">У вас є 60 секунд</p>
+                </div>
+            </div>
+            <button id="undoActionBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-6 py-2.5 rounded-xl transition shadow-lg shadow-emerald-500/20 active:scale-95">
+                СКАСУВАТИ
+            </button>
+        </div>
+    </div>
+
 </body>
 </html>

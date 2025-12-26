@@ -111,6 +111,8 @@ let totalSmokesAllTimeEl, avgSmokesPerDayEl;
 let statsTabs, statsModeBtns;
 let treeContainerEl, toxicCloudEl, healthValueEl, growthStageEl; // New Life Tree Elements 2025
 let lastSettingsSyncTimeEl, hardRefreshButton;
+let undoNotificationEl, undoActionBtn, undoTimerTextEl;
+let undoTimeout = null, undoInterval = null;
 // DOM Elements
 const syncIndicator = document.getElementById('syncIndicator');
 
@@ -297,6 +299,20 @@ async function loadData() {
             updateSettingsInputs();
         }
         updateUI();
+        
+        // Handle Widget Actions (Once per initial load)
+        const urlParams = new URLSearchParams(window.location.search);
+        const action = urlParams.get('action');
+        if (action && !window.initialActionTriggered) {
+             console.log("[DeepLink] Action detected:", action);
+             window.initialActionTriggered = true;
+             // Clear param to avoid double action on refresh
+             window.history.replaceState({}, document.title, window.location.pathname);
+             setTimeout(() => {
+                if (action === 'smoke') handleSmoke('regular');
+                else if (action === 'emergency') handleSmoke('emergency');
+             }, 500); // Small delay to ensure UI is ready
+        }
 
         if (!eventListenersAttached) attachEventListeners();
         loader.classList.add('hidden');
@@ -568,9 +584,9 @@ function updateAvatar() { // Progressive Life Tree Logic 2025
     if (!treeContainerEl || !healthValueEl) return;
     
     // Safety Fallbacks
-    appData.healthIntegrity = Number(appData.healthIntegrity) || 100;
-    appData.evolutionPointsMs = Number(appData.evolutionPointsMs) || 0;
-    appData.lastIntegrityUpdate = Number(appData.lastIntegrityUpdate) || Date.now();
+    if (typeof appData.healthIntegrity !== 'number') appData.healthIntegrity = 100;
+    if (typeof appData.evolutionPointsMs !== 'number') appData.evolutionPointsMs = 0;
+    if (typeof appData.lastIntegrityUpdate !== 'number') appData.lastIntegrityUpdate = Date.now();
     
     const now = Date.now();
     const diffMs = now - appData.lastIntegrityUpdate;
@@ -682,7 +698,7 @@ async function renderLifeTree(stage, health) {
 
     let assetIndex = stage;
     if (assetIndex > 4) assetIndex = 4;
-    if (assetIndex === 2) assetIndex = 3;
+    // assetIndex mapping: 1 (parostok), 2 (sadzanets), 3 (serednie), 4 (velike)
     
     const rawSrc = `assets/tree_${assetIndex}.png`;
     const processedSrc = await getTransparentTree(rawSrc);
@@ -812,9 +828,62 @@ function handleSmoke(type = 'regular') {
     appData.updatedAt = Date.now(); // CRITICAL: Bump timestamp so sync logic honors this change
     
     // Show undo button for 60 seconds
+    showUndoToast();
     
     saveData(true);
     updateUI();
+}
+
+function showUndoToast() {
+    if (!undoNotificationEl) return;
+    
+    clearTimeout(undoTimeout);
+    clearInterval(undoInterval);
+    
+    let secondsLeft = 60;
+    undoTimerTextEl.textContent = `У вас є ${secondsLeft} секунд`;
+    
+    undoNotificationEl.classList.remove('translate-y-32', 'opacity-0', 'pointer-events-none');
+    
+    undoInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft <= 0) {
+            hideUndoToast();
+        } else {
+            undoTimerTextEl.textContent = `У вас є ${secondsLeft} секунд`;
+        }
+    }, 1000);
+    
+    undoTimeout = setTimeout(() => {
+        hideUndoToast();
+    }, 60000);
+}
+
+function hideUndoToast() {
+    if (!undoNotificationEl) return;
+    undoNotificationEl.classList.add('translate-y-32', 'opacity-0', 'pointer-events-none');
+    clearInterval(undoInterval);
+    clearTimeout(undoTimeout);
+}
+
+function handleUndoSmoke() {
+    if (appData.smokeHistory.length === 0) return;
+    
+    const lastSmoke = appData.smokeHistory.pop();
+    const damage = lastSmoke.type === 'regular' ? 10 : 20;
+    appData.healthIntegrity = Math.min(100, appData.healthIntegrity + damage);
+    
+    // Restore evolution progress
+    const msPenalty = lastSmoke.type === 'regular' ? (1000 * 60 * 60 * 1) : (1000 * 60 * 60 * 2);
+    appData.evolutionPointsMs += msPenalty;
+    
+    appData.lastSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[appData.smokeHistory.length - 1].timestamp : null;
+    appData.updatedAt = Date.now();
+    
+    hideUndoToast();
+    saveData(true);
+    updateUI();
+    console.log("[Undo] Smoke action undone.");
 }
 
 function updateSettingsInputs() {
@@ -1081,6 +1150,7 @@ const attachEventListeners = () => {
     openSettingsButton.addEventListener('click', toggleSettingsView);
     closeSettingsButton.addEventListener('click', toggleSettingsView);
     saveSettingsButton.addEventListener('click', handleSaveSettings);
+    if (undoActionBtn) undoActionBtn.addEventListener('click', handleUndoSmoke);
     if (forceSyncButton) forceSyncButton.addEventListener('click', handleForceSync);
     if (hardRefreshButton) hardRefreshButton.addEventListener('click', handleHardRefresh);
     deepResetButton.addEventListener('click', handleDeepReset);
@@ -1092,6 +1162,11 @@ const attachEventListeners = () => {
     packSizeInput.addEventListener('input', () => { updateOldHabitMoneyDisplay(); updateDesiredDailySticksMoneyDisplay(); });
     oldHabitInput.addEventListener('input', updateOldHabitMoneyDisplay);
     desiredDailySticksInput.addEventListener('input', updateDesiredDailySticksMoneyDisplay);
+    
+    window.addEventListener('online', () => {
+        console.log("[Network] Back online. Syncing...");
+        saveData(true);
+    });
 
     eventListenersAttached = true;
 }
@@ -1132,6 +1207,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     accountBadge = document.getElementById('accountBadge');
     hardRefreshButton = document.getElementById('hardRefreshButton');
     lastSettingsSyncTimeEl = document.getElementById('lastSettingsSyncTime');
+    undoNotificationEl = document.getElementById('undoNotification');
+    undoActionBtn = document.getElementById('undoActionBtn');
+    undoTimerTextEl = document.getElementById('undoTimerText');
 
     signInGoogleButton = document.getElementById('signInGoogleButton'); 
     signOutButton = document.getElementById('signOutButton'); 
