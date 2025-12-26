@@ -311,13 +311,9 @@ function updateUI() {
 
     emergencySmokeButton.disabled = false;
     updateStatistics(now);
-
-    renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
-    updateStatistics(now);
-    updateAvatar(); // Call Avatar Update
-
-    renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
+    updateAvatar();
     updateGlobalStats();
+    renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
 
 
     // Show sync status visually (optional polish)
@@ -825,7 +821,6 @@ function handleSaveSettings() {
 }
 
 async function handleResetData() {
-    alert("[DEBUG] Reset Data clicked");
     console.log("[handleResetData] Triggered");
     showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
         console.log("[handleResetData] Resetting data...");
