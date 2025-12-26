@@ -6,12 +6,12 @@ import { firebaseConfig, appId } from './firebase-config.js';
 import { getStickPluralForm, formatHoursToReadable, formatMinutesToReadable } from './utils.js';
 import { renderSmokeChart, destroyChart } from './charts.js';
 
-// --- BIO-CORE 3.0 CONSTANTS (Mathematical State) ---
-const REGEN_PER_HOUR = 4;
-const DAMAGE_REGULAR = 12;
-const DAMAGE_EMERGENCY = 25;
-const PENALTY_REGULAR_MS = 3600000;   // 1h
-const PENALTY_EMERGENCY_MS = 7200000; // 2h
+// --- BIO-CORE 2.0 CONSTANTS (Original User Request) ---
+const REGEN_PER_HOUR = 10;       // +10% per hour (full recovery in 10 hours)
+const DAMAGE_REGULAR = 5;        // -5% per regular stick
+const DAMAGE_EMERGENCY = 10;     // -10% per emergency stick
+const PENALTY_REGULAR_MS = 1000 * 60 * 60 * 6;   // 6h XP penalty
+const PENALTY_EMERGENCY_MS = 1000 * 60 * 60 * 12; // 12h XP penalty
 
 // --- APPLICATION STATE ---
 let app;
