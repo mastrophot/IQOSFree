@@ -909,7 +909,7 @@ async function handleForceSync() {
         setTimeout(() => {
             if (forceSyncButton) {
                 forceSyncButton.disabled = false;
-                forceSyncButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> СИНХРОНІЗУВАТИ`;
+                forceSyncButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> СИНХРОНІЗАЦІЯ`;
             }
         }, 1000);
     }
@@ -920,6 +920,16 @@ async function handleDeepReset() {
     showConfirm("Це повністю очистить кеш додатку та вийде з акаунту. Ви впевнені?", async () => {
         console.log("[DeepReset] Starting nuclear cleanup...");
         
+        // 0. Sign out from Firebase if authenticated
+        if (auth) {
+            try {
+                await signOut(auth);
+                console.log("[DeepReset] Firebase signed out");
+            } catch (e) {
+                console.error("[DeepReset] Sign out error:", e);
+            }
+        }
+
         // 1. Clear Local Storage
         localStorage.clear();
         
