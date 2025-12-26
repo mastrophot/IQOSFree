@@ -110,6 +110,7 @@ let statisticsSection, smokeChartCanvas;
 let totalSmokesAllTimeEl, avgSmokesPerDayEl;
 let statsTabs, statsModeBtns;
 let treeContainerEl, toxicCloudEl, healthValueEl, growthStageEl; // New Life Tree Elements 2025
+let lastSettingsSyncTimeEl, hardRefreshButton;
 // DOM Elements
 const syncIndicator = document.getElementById('syncIndicator');
 
@@ -211,9 +212,28 @@ async function loadData() {
                 console.log("[loadData] Remote settings are newer. Updating settings block.");
                 appData.settings = remoteData.settings || appData.settings;
                 appData.settingsUpdatedAt = remoteSettingsTime;
+                
+                // Update sync time display
+                if (lastSettingsSyncTimeEl) {
+                    const date = new Date(remoteSettingsTime);
+                    lastSettingsSyncTimeEl.textContent = date.toLocaleTimeString();
+                }
+            }
+
+            // 1b. STATE: Sync progressive state if remote is generally newer
+            if (remoteUpdateTime > localUpdateTime) {
+                console.log("[loadData] Remote state is newer. Updating health and progress.");
                 appData.healthIntegrity = remoteData.healthIntegrity ?? appData.healthIntegrity;
                 appData.evolutionPointsMs = remoteData.evolutionPointsMs ?? appData.evolutionPointsMs;
+                appData.lastIntegrityUpdate = remoteData.lastIntegrityUpdate ?? appData.lastIntegrityUpdate;
+                appData.appStartDate = remoteData.appStartDate ?? appData.appStartDate;
             }
+
+            // 1c. RECORDS: Always take the best record
+            appData.longestSmokeFreeStreakHours = Math.max(
+                appData.longestSmokeFreeStreakHours || 0,
+                remoteData.longestSmokeFreeStreakHours || 0
+            );
 
             // 2. HISTORY: Additive Merge (Safest for multi-device)
             const localHist = (localData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
@@ -567,8 +587,8 @@ function updateAvatar() { // Progressive Life Tree Logic 2025
         appData.lastIntegrityUpdate = now;
         
         // Зберігаємо прогрес локально щоб не втратити при перезавантаженні
-        // Зберігаємо кожну секунду для надійності
-        saveLocalData(appData);
+        // Зберігаємо кожну секунду для надійності, але НЕ оновлюємо updatedAt для синхронізації
+        saveLocalData(appData, false);
         
         // Періодична синхронізація з Firestore (кожні 30 секунд)
         if (now - lastFirebaseSyncTime > FIREBASE_SYNC_INTERVAL) {
@@ -908,6 +928,7 @@ async function handleForceSync() {
                 ...getDefaultAppData(),
                 ...remoteData,
                 smokeHistory: uniqueSmokes,
+                longestSmokeFreeStreakHours: Math.max(localData.longestSmokeFreeStreakHours || 0, remoteData.longestSmokeFreeStreakHours || 0),
                 updatedAt: Date.now()
             };
             
@@ -1028,13 +1049,36 @@ async function handleSignOut() {
     }
 }
 
-function attachEventListeners() {
+async function handleHardRefresh() {
+    if (!confirm("Це очистить кеш програми та перезавантажить її. Допомагає, якщо пристрої показують різні дані. Продовжити?")) return;
+    
+    updateSyncStatus('syncing');
+    if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+            await registration.unregister();
+        }
+    }
+    const names = await caches.keys();
+    for (let name of names) {
+        await caches.delete(name);
+    }
+    
+    // Clear reset flag just in case
+    localStorage.removeItem('FORCE_FIREBASE_RESET');
+    
+    alert("Кеш очищено. Програма перезавантажується...");
+    window.location.reload(true);
+}
+
+const attachEventListeners = () => {
     smokeButton.addEventListener('click', () => handleSmoke('regular'));
     emergencySmokeButton.addEventListener('click', () => handleSmoke('emergency'));
     openSettingsButton.addEventListener('click', toggleSettingsView);
     closeSettingsButton.addEventListener('click', toggleSettingsView);
     saveSettingsButton.addEventListener('click', handleSaveSettings);
-    forceSyncButton.addEventListener('click', handleForceSync);
+    if (forceSyncButton) forceSyncButton.addEventListener('click', handleForceSync);
+    if (hardRefreshButton) hardRefreshButton.addEventListener('click', handleHardRefresh);
     deepResetButton.addEventListener('click', handleDeepReset);
     resetDataButton.addEventListener('click', handleResetData);
     signInGoogleButton.addEventListener('click', handleGoogleSignIn);
@@ -1082,6 +1126,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     deepResetButton = document.getElementById('deepResetButton');
     resetDataButton = document.getElementById('resetDataButton');
     accountBadge = document.getElementById('accountBadge');
+    hardRefreshButton = document.getElementById('hardRefreshButton');
+    lastSettingsSyncTimeEl = document.getElementById('lastSettingsSyncTime');
 
     signInGoogleButton = document.getElementById('signInGoogleButton'); 
     signOutButton = document.getElementById('signOutButton'); 
