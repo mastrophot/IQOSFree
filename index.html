@@ -68,7 +68,7 @@
                         <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
                             Кидай Курити
                         </h1>
-                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.1.50</span>
+                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.1.51</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <p id="userStatusDisplay" class="text-[10px] text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
@@ -283,12 +283,12 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                 СИНХРОНІЗАЦІЯ
                             </button>
-                            <button id="resetDataButton" onclick="window.triggerResetData()" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
+                            <button id="resetDataButton" onclick="alert('Reset Clicked!'); triggerResetData()" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
                                 СНУЛИТИ ДАНІ
                             </button>
                         </div>
                         
-                        <button id="deepResetButton" onclick="window.triggerDeepReset()" class="w-full mt-4 bg-slate-900/50 hover:bg-slate-900 text-slate-500 hover:text-red-400 text-[10px] font-black py-3 px-4 rounded-xl border border-slate-800 hover:border-red-500/30 transition-all uppercase tracking-wider">
+                        <button id="deepResetButton" onclick="alert('Deep Reset Clicked!'); triggerDeepReset()" class="w-full mt-4 bg-slate-900/50 hover:bg-slate-900 text-slate-500 hover:text-red-400 text-[10px] font-black py-3 px-4 rounded-xl border border-slate-800 hover:border-red-500/30 transition-all uppercase tracking-wider">
                             Повне скидання кешу та вихід
                         </button>
                     </div>
@@ -297,21 +297,34 @@
                     <button id="signOutButton" class="w-full text-slate-500 text-sm font-medium py-3 hover:text-slate-300 hidden border-t border-slate-800 pt-6">
                         Вийти з акаунту
                     </button>
-                </div> <!-- max-w-lg -->
-             </div> <!-- settings-view container? no, settings-view is root here -->
-        </div> <!-- app -->
+                </div> <!-- closes .mt-8 (275) -->
+            </div> <!-- closes .max-w-lg (233) -->
+        </div> <!-- closes #settings-view (232) -->
+    </div> <!-- closes #app (60) -->
 
-        <script>
-            // Global Fallback Handlers (Last resort for mobile)
-            window.triggerResetData = function() { 
-                if (typeof handleResetData === 'function') handleResetData(); 
-                else console.error('handleResetData not found');
-            };
-            window.triggerDeepReset = function() {
-                if (typeof handleDeepReset === 'function') handleDeepReset();
-                else console.error('handleDeepReset not found');
-            };
-        </script>
+    <script>
+        // Global Fallback Handlers (Last resort for mobile)
+        window.triggerResetData = function() { 
+            console.log('Attempting reset...');
+            if (window.handleResetData) {
+                window.handleResetData();
+            } else {
+                console.error('handleResetData not found on window. Falling back to emergency reset.');
+                if (confirm("Помилка додатка. Очистити дані локально?")) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            }
+        };
+        window.triggerDeepReset = function() {
+            if (window.handleDeepReset) {
+                window.handleDeepReset();
+            } else {
+                localStorage.clear();
+                location.reload();
+            }
+        };
+    </script>
 
     <!-- Confirm Modal (Moved to root for absolute priority) -->
     <div id="confirmModal" class="hidden fixed inset-0 z-[1000] flex items-center justify-center p-4">
@@ -330,7 +343,7 @@
 
     <!-- Robust Service Worker Registration -->
     <script>
-        const SW_VERSION = 'v2.1.50';
+        const SW_VERSION = 'v2.1.51';
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').then(reg => {
