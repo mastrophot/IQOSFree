@@ -68,7 +68,7 @@
                         <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
                             Кидай Курити
                         </h1>
-                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.1.46</span>
+                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.1.47</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <p id="userStatusDisplay" class="text-[10px] text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
@@ -298,19 +298,20 @@
                         Вийти з акаунту
                     </button>
                 </div>
+                </div>
              </div>
         </div>
-    </div>
-    
-    <!-- Confirm Modal -->
-    <div id="confirmModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm"></div>
-        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-sm w-full text-center relative z-10 shadow-2xl skew-y-0 transform">
-            <h3 class="text-xl font-bold text-white mb-4">Ви впевнені?</h3>
-            <p id="modalText" class="text-slate-400 mb-8 leading-relaxed">Цю дію неможливо скасувати.</p>
-            <div class="flex gap-4">
-                <button id="confirmNo" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl transition">Ні</button>
-                <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/20">Так, видалити</button>
+
+        <!-- Confirm Modal (Moved inside app context) -->
+        <div id="confirmModal" class="hidden fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-slate-950/95 backdrop-blur-md"></div>
+            <div class="bg-slate-900 border border-slate-700/50 rounded-3xl p-8 max-w-sm w-full text-center relative z-10 shadow-2xl">
+                <h3 class="text-xl font-bold text-white mb-4">Ви впевнені?</h3>
+                <p id="modalText" class="text-slate-400 mb-8 leading-relaxed">Цю дію неможливо скасувати.</p>
+                <div class="flex gap-4">
+                    <button id="confirmNo" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl transition">Ні</button>
+                    <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/20">Так, видалити</button>
+                </div>
             </div>
         </div>
     </div>
@@ -319,7 +320,7 @@
 
     <!-- Robust Service Worker Registration -->
     <script>
-        const SW_VERSION = 'v2.1.46';
+        const SW_VERSION = 'v2.1.47';
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').then(reg => {
