@@ -195,65 +195,48 @@ async function loadData() {
 
         const localData = loadLocalData();
 
-        // NEW: Smart merge logic that handles both additive sync and deletions/resets
+        // SMART MERGE: Separates Settings (latest wins) from History (additive wins)
         if (remoteData && localData) {
             const remoteUpdateTime = remoteData.updatedAt || 0;
             const localUpdateTime = localData.updatedAt || 0;
             
-            console.log(`[loadData] Merging. RemoteTime: ${remoteUpdateTime}, LocalTime: ${localUpdateTime}`);
+            console.log(`[loadData] Sync Event. L:${localUpdateTime} R:${remoteUpdateTime}`);
 
-            // 1. STRICT VERSION CHECK: If remote comes from a newer version, we MUST trust it entirely
-            // This prevents old clients from "breaking" the server with old merge logic
+            // 1. SETTINGS: Trust the latest update
+            if (remoteUpdateTime > localUpdateTime) {
+                appData.settings = remoteData.settings || appData.settings;
+                appData.healthIntegrity = remoteData.healthIntegrity ?? appData.healthIntegrity;
+                appData.evolutionPointsMs = remoteData.evolutionPointsMs ?? appData.evolutionPointsMs;
+            }
+
+            // 2. HISTORY: Additive Merge (Safest for multi-device)
+            const localHist = (localData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
+            const remoteHist = (remoteData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
             
-            // 2. DECIDE HISTORY:
-            let finalHistory = [];
-            
-            // If the difference in history is significant AND one side is much newer, trust the newer side entirely
-            // This handles "resets" and "mass deletions" without ambiguity
-            if (Math.abs(remoteUpdateTime - localUpdateTime) > 1000) { // More than 1s difference
-                if (remoteUpdateTime > localUpdateTime) {
-                    console.log("[loadData] Remote is significantly newer. Trusting remote history.");
-                    finalHistory = remoteData.smokeHistory || [];
-                } else {
-                    console.log("[loadData] Local is significantly newer. Trusting local history.");
-                    finalHistory = localData.smokeHistory || [];
-                }
+            // SPECIAL CASE: If remote is newer AND history is empty, it's a RESET
+            if (remoteHist.length === 0 && localHist.length > 0 && remoteUpdateTime > localUpdateTime + 2000) {
+                console.log("[loadData] Remote Reset detected. Clearing local history.");
+                appData.smokeHistory = [];
             } else {
-                // Parallel updates (within 1s): Additive Merge (Traditional)
-                console.log("[loadData] Times are close. Performing additive merge.");
-                const localHistory = (localData.smokeHistory || []).map(s => 
-                    typeof s === 'number' ? { timestamp: s, type: 'regular' } : s
-                );
-                const remoteHistory = (remoteData.smokeHistory || []).map(s => 
-                    typeof s === 'number' ? { timestamp: s, type: 'regular' } : s
-                );
-                const allSmokes = [...localHistory, ...remoteHistory];
-                const seenTimestamps = new Set();
-                for (const smoke of allSmokes) {
-                    if (!seenTimestamps.has(smoke.timestamp)) {
-                        seenTimestamps.add(smoke.timestamp);
-                        finalHistory.push(smoke);
+                // Deduplicate
+                const allSmokes = [...localHist, ...remoteHist];
+                const seen = new Set();
+                const unique = [];
+                for (const s of allSmokes) {
+                    if (!seen.has(s.timestamp)) {
+                        seen.add(s.timestamp);
+                        unique.push(s);
                     }
                 }
-                finalHistory.sort((a, b) => a.timestamp - b.timestamp);
+                unique.sort((a, b) => a.timestamp - b.timestamp);
+                appData.smokeHistory = unique;
             }
 
-            // Update appData
-            const latestData = remoteUpdateTime > localUpdateTime ? remoteData : localData;
-            appData = {
-                ...getDefaultAppData(),
-                ...latestData,
-                smokeHistory: finalHistory,
-                updatedAt: Math.max(remoteUpdateTime, localUpdateTime)
-            };
+            appData.updatedAt = Math.max(localUpdateTime, remoteUpdateTime);
+            appData.lastSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[appData.smokeHistory.length-1].timestamp : null;
 
-            // Sync back only if local was definitively newer
-            if (localUpdateTime > remoteUpdateTime) {
-                console.log("[loadData] Local was ahead. Syncing to server.");
-                await saveData();
-            } else {
-                saveLocalData(appData, false);
-            }
+            // Save merged state locally
+            saveLocalData(appData, false);
             
         } else if (remoteData) {
             console.log("[loadData] Using remote data.");
@@ -284,7 +267,10 @@ async function loadData() {
         }
 
         saveLocalData(appData);
-        updateSettingsInputs();
+        // Only update inputs if the user is NOT currently editing them
+        if (settingsView.classList.contains('hidden')) {
+            updateSettingsInputs();
+        }
         updateUI();
 
         if (!eventListenersAttached) attachEventListeners();
