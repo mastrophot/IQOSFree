@@ -28,6 +28,7 @@ const getDefaultAppData = () => ({
     healthIntegrity: 100,
     lastIntegrityUpdate: Date.now(),
     evolutionPointsMs: 0,
+    settingsUpdatedAt: Date.now(),
     updatedAt: Date.now()
 });
 
@@ -202,9 +203,14 @@ async function loadData() {
             
             console.log(`[loadData] Sync Event. L:${localUpdateTime} R:${remoteUpdateTime}`);
 
-            // 1. SETTINGS: Trust the latest update
-            if (remoteUpdateTime > localUpdateTime) {
+            // 1. SETTINGS: Trust the latest settings update specifically
+            const remoteSettingsTime = remoteData.settingsUpdatedAt || 0;
+            const localSettingsTime = localData.settingsUpdatedAt || 0;
+            
+            if (remoteSettingsTime > localSettingsTime) {
+                console.log("[loadData] Remote settings are newer. Updating settings block.");
                 appData.settings = remoteData.settings || appData.settings;
+                appData.settingsUpdatedAt = remoteSettingsTime;
                 appData.healthIntegrity = remoteData.healthIntegrity ?? appData.healthIntegrity;
                 appData.evolutionPointsMs = remoteData.evolutionPointsMs ?? appData.evolutionPointsMs;
             }
@@ -823,6 +829,9 @@ function handleSaveSettings() {
     appData.settings.desiredDailySticks = Number(desiredDailySticksInput.value) || 0; 
     let newInterval = Number(smokeIntervalMinutesInput.value);
     appData.settings.smokeIntervalMinutes = (newInterval > 0) ? newInterval : 60;
+    
+    appData.settingsUpdatedAt = Date.now();
+    appData.updatedAt = Date.now();
     
     saveData();
     updateUI();
