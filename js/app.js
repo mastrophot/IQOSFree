@@ -25,7 +25,6 @@ const getDefaultAppData = () => ({
     },
     longestSmokeFreeStreakHours: 0,
     appStartDate: new Date().setHours(0,0,0,0),
-    healthIntegrity: 100,
     lastIntegrityUpdate: Date.now(),
     evolutionPointsMs: 0,
     settingsUpdatedAt: Date.now(),
@@ -224,10 +223,10 @@ async function loadData() {
                 // 2. STATE & MERGE: Only if remote update is strictly newer
                 if (remoteUpdateTime > localUpdateTime) {
                     console.log("[Sync] Remote data is NEWER. Merging state...");
-                    appData.healthIntegrity = remoteData.healthIntegrity ?? appData.healthIntegrity;
-                    appData.evolutionPointsMs = remoteData.evolutionPointsMs ?? appData.evolutionPointsMs;
-                    appData.lastIntegrityUpdate = remoteData.lastIntegrityUpdate ?? appData.lastIntegrityUpdate;
-                    appData.appStartDate = remoteData.appStartDate ?? appData.appStartDate;
+                    if (remoteData.healthIntegrity !== undefined) appData.healthIntegrity = Number(remoteData.healthIntegrity);
+                    if (remoteData.evolutionPointsMs !== undefined) appData.evolutionPointsMs = Number(remoteData.evolutionPointsMs);
+                    if (remoteData.lastIntegrityUpdate !== undefined) appData.lastIntegrityUpdate = Number(remoteData.lastIntegrityUpdate);
+                    if (remoteData.appStartDate !== undefined) appData.appStartDate = Number(remoteData.appStartDate);
                     appData.updatedAt = remoteUpdateTime;
                 } else {
                     console.log("[Sync] Local data is up-to-date or newer. Skipping state merge.");
@@ -583,20 +582,22 @@ function updateInsights() {
 function updateAvatar() { // Progressive Life Tree Logic 2025
     if (!treeContainerEl || !healthValueEl) return;
     
-    // Safety Fallbacks
-    if (typeof appData.healthIntegrity !== 'number') appData.healthIntegrity = 100;
-    if (typeof appData.evolutionPointsMs !== 'number') appData.evolutionPointsMs = 0;
-    if (typeof appData.lastIntegrityUpdate !== 'number') appData.lastIntegrityUpdate = Date.now();
+    // Safety Fallbacks & Precision Conversion
+    appData.healthIntegrity = (appData.healthIntegrity === undefined || appData.healthIntegrity === null) ? 100 : Number(appData.healthIntegrity);
+    if (isNaN(appData.healthIntegrity)) appData.healthIntegrity = 100;
+    
+    appData.evolutionPointsMs = Number(appData.evolutionPointsMs) || 0;
+    appData.lastIntegrityUpdate = Number(appData.lastIntegrityUpdate) || Date.now();
     
     const now = Date.now();
     const diffMs = now - appData.lastIntegrityUpdate;
     const diffHours = diffMs / (1000 * 60 * 60);
     
-    if (diffMs > 0) {
-        // 1. Regenerate Health (User request slowed: +2.5% per hour)
-        const regenAmount = diffHours * 4; // 100% in 25 hours
+    if (diffMs > 0 && diffMs < 86400000) { // Limit regen to max 24h at once to prevent massive jumps
+        // 1. Regenerate Health (User request slowed: +4% per hour)
+        const regenAmount = diffHours * 4; 
         if (appData.healthIntegrity < 100) {
-            appData.healthIntegrity = Math.max(0, Math.min(100, appData.healthIntegrity + regenAmount));
+            appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
         }
 
         // 2. Continuous Growth (Tree gains "XP" every second)
@@ -814,7 +815,7 @@ function handleSmoke(type = 'regular') {
     }
 
     // Integrity Deduction Logic (Increased Impact)
-    const damage = type === 'regular' ? 10 : 20;
+    const damage = type === 'regular' ? 12 : 25; 
     appData.healthIntegrity = Math.max(0, appData.healthIntegrity - damage);
     
     // Growth Slowdown Logic (Bio-Core 2.1: Ultra-Progressive)

@@ -82,7 +82,7 @@
                         <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
                             Кидай Курити
                         </h1>
-                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.3.5</span>
+                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.3.6</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <div id="syncIndicator" class="w-2 h-2 rounded-full bg-slate-700 animate-pulse"></div>
@@ -373,7 +373,7 @@
     <!-- Robust Service Worker Registration -->
     <script>
         const FORCE_FIREBASE_RESET = false;
-        const SW_VERSION = 'v2.3.5';
+        const SW_VERSION = 'v2.3.6';
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').then(reg => {
