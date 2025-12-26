@@ -64,10 +64,16 @@
             <!-- Header -->
             <div class="mt-1 flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
-                        Кидай Курити
-                    </h1>
-                    <p id="userStatusDisplay" class="text-[10px] text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
+                            Кидай Курити
+                        </h1>
+                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.1.41</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <p id="userStatusDisplay" class="text-[10px] text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
+                        <span id="accountBadge" class="text-[8px] px-1.5 py-0.5 rounded font-bold hidden"></span>
+                    </div>
                 </div>
                  <button id="openSettingsButton" class="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors backdrop-blur-md">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -105,6 +111,11 @@
                     ПОКУРИВ
                 </span>
                 <div class="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            </button>
+            
+            <!-- Undo Button -->
+            <button id="undoSmokeButton" class="text-[10px] text-slate-500 hover:text-slate-300 font-bold uppercase tracking-widest transition-all opacity-0 pointer-events-none mt-[-4px]">
+                ✕ Скасувати останній стік
             </button>
 
             <!-- Bento Grid Stats -->
@@ -263,7 +274,19 @@
                 
                 <div class="mt-8 flex flex-col gap-4">
                     <button id="saveSettingsButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-4 rounded-2xl transition shadow-lg shadow-emerald-500/20">Зберегти налаштування</button>
-                    <button id="resetDataButton" class="w-full text-red-500 text-sm font-medium py-3 hover:text-red-400">Скинути всі дані</button>
+                    
+                    <div class="grid grid-cols-2 gap-3 mt-2">
+                        <button id="forceSyncButton" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            ОНОВИТИ ДАНІ
+                        </button>
+                         <button id="resetDataButton" class="bg-red-950/20 hover:bg-red-950/40 text-red-500 text-xs font-bold py-3 px-4 rounded-xl transition">
+                            ОЧИСТИТИ ДАНІ
+                        </button>
+                    </div>
+                    <button id="deepResetButton" class="w-full text-slate-600 text-[10px] font-bold py-2 hover:text-slate-400 uppercase tracking-tighter">
+                        Повне скидання кешу та вихід
+                    </button>
                     
                     <!-- App Mechanics (Moved from main) -->
 
@@ -291,45 +314,57 @@
 
     <script type="module" src="js/app.js"></script>
 
-    <!-- Service Worker Registration with Aggressive Update -->
+    <!-- Robust Service Worker Registration -->
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', async () => {
-          try {
-            const reg = await navigator.serviceWorker.register('./sw.js');
-            console.log('Service Worker registered', reg);
-            
-            // Check for updates immediately
-            reg.update();
-            
-            // Listen for new SW and force update
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              console.log('New SW found, state:', newWorker.state);
-              
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New SW available, reload to activate
-                  console.log('New SW installed, reloading...');
-                  window.location.reload();
-                }
-              });
+        const SW_VERSION = 'v2.1.41';
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    console.log('[SW] Registered version:', SW_VERSION);
+                    
+                    // Periodic check for updates
+                    setInterval(() => reg.update(), 60000); 
+
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('[SW] New version found. Prompting user.');
+                                showUpdateToast();
+                            }
+                        });
+                    });
+                });
             });
-            
-            // Force refresh on controller change
+
+            // Force reload if new SW takes control
             let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-              if (!refreshing) {
-                refreshing = true;
-                window.location.reload();
-              }
+                if (!refreshing) {
+                    refreshing = true;
+                    console.log('[SW] Controller changed. Reloading...');
+                    window.location.reload();
+                }
             });
-            
-          } catch (err) {
-            console.log('Service Worker registration failed', err);
-          }
-        });
-      }
+        }
+
+        function showUpdateToast() {
+            if (document.getElementById('updateToast')) return;
+            const toast = document.createElement('div');
+            toast.id = 'updateToast';
+            toast.className = 'fixed bottom-4 left-4 right-4 bg-emerald-500 text-white p-4 rounded-xl shadow-2xl z-[100] flex justify-between items-center border border-white/20 animate-bounce';
+            toast.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🚀</span>
+                    <div>
+                        <div class="font-bold">Доступна нова версія!</div>
+                        <div class="text-[10px] opacity-80 font-mono">${SW_VERSION} ready</div>
+                    </div>
+                </div>
+                <button onclick="window.location.reload()" class="bg-white text-emerald-900 px-4 py-2 rounded-lg font-bold text-sm">ОНОВИТИ</button>
+            `;
+            document.body.appendChild(toast);
+        }
     </script>
 </body>
 </html>

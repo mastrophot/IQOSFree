@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, linkWithPopup, signOut, signInWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { firebaseConfig, appId } from './firebase-config.js';
 import { getStickPluralForm, formatHoursToReadable, formatMinutesToReadable } from './utils.js';
@@ -90,14 +90,15 @@ let appData = loadLocalData() || getDefaultAppData();
 let eventListenersAttached = false;
 let isInitialAuthCheckComplete = false;
 let lastFirebaseSyncTime = 0;
-const FIREBASE_SYNC_INTERVAL = 30000; // 30 секунд
+const FIREBASE_SYNC_INTERVAL = 10000; // 10 секунд — швидша крос-девайс синхронізація
 let userId = null;
 let dataRef = null;
+let unsubscribeSnapshot = null; // Real-time listener cleanup
 
 // --- DOM ELEMENTS ---
 // (Initialized in DOMContentLoaded)
-let loader, appContainer, mainView, settingsView, timerEl, statusMessageEl;
-let smokeButton, emergencySmokeButton, openSettingsButton, closeSettingsButton, saveSettingsButton, resetDataButton;
+let loader, appContainer, mainView, settingsView, timerEl, statusMessageEl, accountBadge;
+let smokeButton, undoSmokeButton, emergencySmokeButton, openSettingsButton, closeSettingsButton, saveSettingsButton, resetDataButton, forceSyncButton, deepResetButton;
 let smokedTodayValueEl, smokedTodayPlannedEl, spentTodayValueEl, spentTodayPlannedEl;
 let smokeFreeStreakEl, longestSmokeFreeStreakEl;
 let balanceCardEl, financialBalanceLabelEl, financialBalanceValueEl, balanceIconEl;
@@ -145,31 +146,36 @@ async function loadData() {
         return;
     }
 
+    // Cleanup previous listener if exists
+    if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+    }
+
     // CRITICAL: Save backup BEFORE any sync operation
     const currentLocalData = loadLocalData();
     if (currentLocalData && currentLocalData.smokeHistory && currentLocalData.smokeHistory.length > 0) {
         saveBackup(currentLocalData);
     }
 
-    console.log(`[loadData] Loading data for userId: ${userId}`);
+    console.log(`[loadData] Initializing real-time listener for userId: ${userId}`);
     dataRef = doc(db, `artifacts/${appId}/users/${userId}/smokingData/data`);
-    try {
-        const docSnap = await getDoc(dataRef);
+
+    // Use onSnapshot for REAL-TIME synchronization
+    unsubscribeSnapshot = onSnapshot(dataRef, async (docSnap) => {
         let remoteData = null;
         if (docSnap.exists()) {
             remoteData = docSnap.data();
+            console.log("[loadData] Remote update received via onSnapshot");
         }
 
         const localData = loadLocalData();
 
         // NEW: Smart merge logic that COMBINES data from both sources
         if (remoteData && localData) {
-            console.log("[loadData] Both remote and local data exist. MERGING...");
+            console.log("[loadData] Merging remote and local data...");
             
-            // 1. Start with defaults
-            appData = getDefaultAppData();
-            
-            // 2. Merge smokeHistory - combine and deduplicate by timestamp
+            // Deduplicate history by timestamp
             const localHistory = (localData.smokeHistory || []).map(s => 
                 typeof s === 'number' ? { timestamp: s, type: 'regular' } : s
             );
@@ -177,7 +183,6 @@ async function loadData() {
                 typeof s === 'number' ? { timestamp: s, type: 'regular' } : s
             );
             
-            // Combine and deduplicate (same timestamp = same smoke)
             const allSmokes = [...localHistory, ...remoteHistory];
             const uniqueSmokes = [];
             const seenTimestamps = new Set();
@@ -189,96 +194,71 @@ async function loadData() {
                 }
             }
             
-            // Sort by timestamp
             uniqueSmokes.sort((a, b) => a.timestamp - b.timestamp);
-            appData.smokeHistory = uniqueSmokes;
             
-            console.log(`[loadData] Merged history: Local=${localHistory.length}, Remote=${remoteHistory.length}, Combined=${uniqueSmokes.length}`);
-            
-            // 3. Use most recent settings (by updatedAt)
+            // Only update appData if remote is newer or has more history
             const remoteUpdateTime = remoteData.updatedAt || 0;
             const localUpdateTime = localData.updatedAt || 0;
-            
-            if (remoteUpdateTime > localUpdateTime) {
-                appData.settings = { ...appData.settings, ...remoteData.settings };
-            } else {
-                appData.settings = { ...appData.settings, ...localData.settings };
-            }
-            
-            // 4. Merge other fields - take the best values
+
+            // Update appData with merged results
+            appData = {
+                ...getDefaultAppData(),
+                ... (remoteUpdateTime > localUpdateTime ? remoteData : localData),
+                smokeHistory: uniqueSmokes,
+                updatedAt: Math.max(remoteUpdateTime, localUpdateTime, Date.now())
+            };
+
+            // Fields to take the "best" from
             appData.lastSmokeTime = Math.max(localData.lastSmokeTime || 0, remoteData.lastSmokeTime || 0) || null;
             appData.longestSmokeFreeStreakHours = Math.max(localData.longestSmokeFreeStreakHours || 0, remoteData.longestSmokeFreeStreakHours || 0);
-            appData.appStartDate = Math.min(localData.appStartDate || Date.now(), remoteData.appStartDate || Date.now());
             appData.healthIntegrity = Math.max(localData.healthIntegrity || 0, remoteData.healthIntegrity || 0);
             appData.evolutionPointsMs = Math.max(localData.evolutionPointsMs || 0, remoteData.evolutionPointsMs || 0);
-            appData.lastIntegrityUpdate = Math.max(localData.lastIntegrityUpdate || 0, remoteData.lastIntegrityUpdate || 0);
-            appData.updatedAt = Date.now();
             
-            // 5. Sync merged data back to Firebase
-            await saveData();
+            // If local history has more entries than remote, sync back once to share the new data
+            if (localHistory.length > remoteHistory.length) {
+                console.log(`[loadData] Local has ${localHistory.length} vs Remote ${remoteHistory.length}. Syncing back.`);
+                await saveData();
+            } else {
+                // If they are equal but timestamps differ or settings differ, we already merged into appData
+                saveLocalData(appData);
+            }
             
         } else if (remoteData) {
-            console.log("[loadData] Only remote data exists. Using remote.");
+            console.log("[loadData] Using remote data.");
             appData = { ...getDefaultAppData(), ...remoteData };
         } else if (localData) {
-            console.log("[loadData] Only local data exists. Using local and syncing to remote.");
+            console.log("[loadData] Using local data and pushing to Firebase.");
             appData = { ...getDefaultAppData(), ...localData };
             await saveData(); 
         } else {
-            console.log("[loadData] No data anywhere. Using defaults.");
+            console.log("[loadData] No data found. Using defaults.");
             appData = getDefaultAppData();
             await saveData(); 
         }
 
-        // Sanitize History & Migrations
+        // Sanitize & Migrations
         appData.smokeHistory = (appData.smokeHistory || []).map(smoke => {
             if (typeof smoke === 'number') return { timestamp: smoke, type: 'regular' };
             return { timestamp: smoke.timestamp, type: smoke.type || 'regular' }; 
         });
 
-        // Migrate hours to minutes if needed
-        if (appData.settings && appData.settings.smokeIntervalHours !== undefined && appData.settings.smokeIntervalMinutes === undefined) {
-            appData.settings.smokeIntervalMinutes = appData.settings.smokeIntervalHours * 60;
-        }
-        
-        // Evolution Points Migration
-        if (appData.evolutionPointsMs === undefined) {
-            const now = Date.now();
-            const currentStreakMs = appData.lastSmokeTime ? (now - appData.lastSmokeTime) : (now - appData.appStartDate);
-            appData.evolutionPointsMs = Math.max(0, currentStreakMs);
-        }
-
-        // Date Migration
-        const savedStartDate = appData.appStartDate || 0;
-        const firstSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[0].timestamp : Date.now();
-        const startOfDayOfFirstSmoke = new Date(firstSmokeTime).setHours(0,0,0,0);
-        
-        if (savedStartDate === 0) {
-            appData.appStartDate = startOfDayOfFirstSmoke;
-        } else {
-            appData.appStartDate = new Date(Math.min(savedStartDate, startOfDayOfFirstSmoke)).setHours(0,0,0,0);
-        }
-
-        // CRITICAL: Check if we lost data and should restore from backup
+        // Backup check
         const backup = loadBackup();
         if (shouldRestoreFromBackup(appData, backup)) {
-            console.warn('[loadData] Data loss detected! Restoring from backup...');
-            console.log(`[loadData] Current: ${appData.smokeHistory.length} entries, Backup: ${backup.smokeHistory.length} entries`);
+            console.warn('[loadData] Potential data loss in sync! Restoring from backup...');
             appData = { ...getDefaultAppData(), ...backup };
-            delete appData.backupTime; // Remove backup metadata
+            delete appData.backupTime;
+            await saveData();
         }
 
         saveLocalData(appData);
-    } catch (error) {
-        console.error("Error loading data: ", error);
-        loader.textContent = "Помилка завантаження даних. Спробуйте оновити сторінку.";
-        return; 
-    }
+        updateSettingsInputs();
+        updateUI();
 
-    updateSettingsInputs();
-    if (!eventListenersAttached) attachEventListeners();
-    loader.classList.add('hidden');
-    appContainer.classList.remove('hidden');
+        if (!eventListenersAttached) attachEventListeners();
+        loader.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+    });
 }
 
 async function saveData() {
@@ -326,6 +306,24 @@ function updateUI() {
 
     renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
     updateGlobalStats();
+
+    // Undo button visibility
+    if (appData.smokeHistory && appData.smokeHistory.length > 0) {
+        undoSmokeButton.classList.remove('opacity-0', 'pointer-events-none');
+    } else {
+        undoSmokeButton.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    // Show sync status visually (optional polish)
+    if (userStatusDisplay) {
+        const syncDot = document.getElementById('syncIndicator') || document.createElement('span');
+        syncDot.id = 'syncIndicator';
+        syncDot.className = 'inline-block w-2 h-2 rounded-full bg-green-500 ml-2 animate-pulse';
+        syncDot.title = 'Синхронізація активна';
+        if (!userStatusDisplay.contains(syncDot)) {
+            userStatusDisplay.appendChild(syncDot);
+        }
+    }
 }
 
 function updateStatistics(now) {
@@ -768,6 +766,31 @@ function handleSmoke(type = 'regular') {
     updateUI();
 }
 
+function handleUndoSmoke() {
+    if (!appData.smokeHistory || appData.smokeHistory.length === 0) return;
+
+    const lastSmoke = appData.smokeHistory.pop();
+    console.log(`[handleUndoSmoke] Undoing ${lastSmoke.type} smoke from ${new Date(lastSmoke.timestamp).toLocaleTimeString()}`);
+
+    // Restore health & evolution points
+    const damage = lastSmoke.type === 'regular' ? 5 : 10;
+    const msPenalty = lastSmoke.type === 'regular' ? (1000 * 60 * 60 * 1) : (1000 * 60 * 60 * 2);
+
+    appData.healthIntegrity = Math.min(100, appData.healthIntegrity + damage);
+    appData.evolutionPointsMs = Math.max(0, appData.evolutionPointsMs + msPenalty);
+
+    // Re-calculate lastSmokeTime
+    if (appData.smokeHistory.length > 0) {
+        appData.lastSmokeTime = appData.smokeHistory[appData.smokeHistory.length - 1].timestamp;
+    } else {
+        appData.lastSmokeTime = null;
+    }
+
+    appData.updatedAt = Date.now();
+    saveData();
+    updateUI();
+}
+
 function updateSettingsInputs() {
     packPriceInput.value = appData.settings.packPrice;
     packSizeInput.value = appData.settings.packSize;
@@ -818,6 +841,87 @@ async function handleResetData() {
         await saveData();
         updateSettingsInputs();
         updateUI();
+    });
+}
+
+async function handleForceSync() {
+    if (!userId || !dataRef) return;
+    console.log("[handleForceSync] Manual sync triggered...");
+    forceSyncButton.disabled = true;
+    forceSyncButton.innerHTML = "🕒 СИНХРОНІЗАЦІЯ...";
+    
+    try {
+        const docSnap = await getDoc(dataRef);
+        if (docSnap.exists()) {
+            const remoteData = docSnap.data();
+            const localData = loadLocalData();
+            
+            // Perform a hard merge
+            const localHistory = (localData.smokeHistory || []);
+            const remoteHistory = (remoteData.smokeHistory || []);
+            const allSmokes = [...localHistory, ...remoteHistory];
+            const uniqueSmokes = [];
+            const seenTimestamps = new Set();
+            for (const s of allSmokes) {
+                const ts = typeof s === 'number' ? s : s.timestamp;
+                if (!seenTimestamps.has(ts)) {
+                    seenTimestamps.add(ts);
+                    uniqueSmokes.push(typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
+                }
+            }
+            uniqueSmokes.sort((a,b) => a.timestamp - b.timestamp);
+            
+            appData = {
+                ...getDefaultAppData(),
+                ...remoteData,
+                smokeHistory: uniqueSmokes,
+                updatedAt: Date.now()
+            };
+            
+            saveLocalData(appData);
+            updateSettingsInputs();
+            updateUI();
+            console.log("[handleForceSync] Sync complete. Merged sticks:", uniqueSmokes.length);
+        }
+    } catch (e) {
+        console.error("[handleForceSync] Error:", e);
+    } finally {
+        setTimeout(() => {
+            if (forceSyncButton) {
+                forceSyncButton.disabled = false;
+                forceSyncButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> ОНОВИТИ ДАНІ`;
+            }
+        }, 1000);
+    }
+}
+
+async function handleDeepReset() {
+    showConfirm("Це повністю очистить кеш додатку та вийде з акаунту. Ви впевнені?", async () => {
+        console.log("[DeepReset] Starting nuclear cleanup...");
+        
+        // 1. Clear Local Storage
+        localStorage.clear();
+        
+        // 2. Unregister ALL Service Workers
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (let reg of regs) {
+                await reg.unregister();
+                console.log("[DeepReset] SW unregistered");
+            }
+        }
+        
+        // 3. Clear Caches
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            for (let key of keys) {
+                await caches.delete(key);
+                console.log("[DeepReset] Cache deleted:", key);
+            }
+        }
+
+        // 4. Reload
+        window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
     });
 }
 
@@ -880,10 +984,13 @@ async function handleSignOut() {
 
 function attachEventListeners() {
     smokeButton.addEventListener('click', () => handleSmoke('regular'));
+    undoSmokeButton.addEventListener('click', handleUndoSmoke);
     emergencySmokeButton.addEventListener('click', () => handleSmoke('emergency'));
     openSettingsButton.addEventListener('click', toggleSettingsView);
     closeSettingsButton.addEventListener('click', toggleSettingsView);
     saveSettingsButton.addEventListener('click', handleSaveSettings);
+    forceSyncButton.addEventListener('click', handleForceSync);
+    deepResetButton.addEventListener('click', handleDeepReset);
     resetDataButton.addEventListener('click', handleResetData);
     signInGoogleButton.addEventListener('click', handleGoogleSignIn);
     signOutButton.addEventListener('click', handleSignOut);
@@ -910,6 +1017,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     healthValueEl = document.getElementById('healthValue');
     growthStageEl = document.getElementById('growthStage');
     smokeButton = document.getElementById('smokeButton');
+    undoSmokeButton = document.getElementById('undoSmokeButton');
     emergencySmokeButton = document.getElementById('emergencySmokeButton');
     
     smokedTodayValueEl = document.getElementById('smokedTodayValue');
@@ -926,7 +1034,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     openSettingsButton = document.getElementById('openSettingsButton');
     closeSettingsButton = document.getElementById('closeSettingsButton');
     saveSettingsButton = document.getElementById('saveSettingsButton');
+    forceSyncButton = document.getElementById('forceSyncButton');
+    deepResetButton = document.getElementById('deepResetButton');
     resetDataButton = document.getElementById('resetDataButton');
+    accountBadge = document.getElementById('accountBadge');
 
     signInGoogleButton = document.getElementById('signInGoogleButton'); 
     signOutButton = document.getElementById('signOutButton'); 
@@ -980,12 +1091,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (user) {
             userId = user.uid;
             if (user.isAnonymous) {
-                userStatusDisplay.textContent = "Ви анонімний користувач";
+                userStatusDisplay.textContent = "Анонімний режим";
+                accountBadge.textContent = "LOCAL-ONLY";
+                accountBadge.classList.replace('hidden', 'inline-block');
+                accountBadge.className = "text-[8px] px-1.5 py-0.5 rounded font-bold inline-block bg-amber-500/20 text-amber-500";
                 signInGoogleButton.classList.remove('hidden'); 
                 signOutButton.classList.add('hidden'); 
             } else {
                 const userName = user.displayName || user.email || "Користувач";
                 userStatusDisplay.textContent = `Привіт, ${userName}!`;
+                accountBadge.textContent = "GOOGLE SYNC";
+                accountBadge.classList.replace('hidden', 'inline-block');
+                accountBadge.className = "text-[8px] px-1.5 py-0.5 rounded font-bold inline-block bg-emerald-500/20 text-emerald-500";
                 signInGoogleButton.classList.add('hidden'); 
                 signOutButton.classList.remove('hidden'); 
             }
@@ -1031,13 +1148,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Зберігаємо прогрес коли користувач згортає вкладку або застосунок
-    document.addEventListener('visibilitychange', () => {
+    document.addEventListener('visibilitychange', async () => {
         if (document.visibilityState === 'hidden') {
             console.log('[visibilitychange] Saving data before hiding...');
+            appData.updatedAt = Date.now();
             saveLocalData(appData);
             // Force sync to Firebase when going background
             if (dataRef && userId) {
-                setDoc(dataRef, { ...appData, updatedAt: Date.now() });
+                try {
+                    await setDoc(dataRef, appData);
+                    console.log('[visibilitychange] Sync to Firebase successful');
+                } catch (e) {
+                    console.error('[visibilitychange] Sync to Firebase failed', e);
+                }
             }
         }
     });
