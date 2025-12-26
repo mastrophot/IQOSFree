@@ -142,6 +142,10 @@ function setupConfirmModalListeners() {
     };
 }
 
+// Expose handlers to window for inline onclick fallbacks
+window.handleResetData = handleResetData;
+window.handleDeepReset = handleDeepReset;
+
 async function loadData() {
     if (!userId) {
         console.warn("[loadData] userId is null. Using local data.");
@@ -1127,6 +1131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     confirmNo = document.getElementById('confirmNo');
 
     setupConfirmModalListeners();
+    attachEventListeners(); // Force attachment here
 
     // Init Firebase
     try {
