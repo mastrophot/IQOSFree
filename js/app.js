@@ -542,7 +542,7 @@ function updateAvatar() { // Progressive Life Tree Logic 2025
         // 1. Regenerate Health (User request slowed: +2.5% per hour)
         const regenAmount = diffHours * 4; // 100% in 25 hours
         if (appData.healthIntegrity < 100) {
-            appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
+            appData.healthIntegrity = Math.max(0, Math.min(100, appData.healthIntegrity + regenAmount));
         }
 
         // 2. Continuous Growth (Tree gains "XP" every second)
@@ -770,6 +770,7 @@ function handleSmoke(type = 'regular') {
     
     appData.lastSmokeTime = new Date().getTime();
     appData.smokeHistory.push({ timestamp: appData.lastSmokeTime, type: type });
+    appData.updatedAt = Date.now(); // CRITICAL: Bump timestamp so sync logic honors this change
     
     // Show undo button for 60 seconds
     showUndoUntil = Date.now() + 60000;
@@ -861,7 +862,7 @@ async function handleForceSync() {
     if (!userId || !dataRef) return;
     console.log("[handleForceSync] Manual sync triggered...");
     forceSyncButton.disabled = true;
-    forceSyncButton.innerHTML = "🕒 СИНХРОНІЗАЦІЯ...";
+    forceSyncButton.innerHTML = "🕒 СИНХРОНІЗУЄМО...";
     
     try {
         const docSnap = await getDoc(dataRef);
@@ -902,7 +903,7 @@ async function handleForceSync() {
         setTimeout(() => {
             if (forceSyncButton) {
                 forceSyncButton.disabled = false;
-                forceSyncButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> ОНОВИТИ ДАНІ`;
+                forceSyncButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> СИНХРОНІЗУВАТИ`;
             }
         }, 1000);
     }
