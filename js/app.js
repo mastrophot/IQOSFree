@@ -855,12 +855,31 @@ function handleSaveSettings() {
 async function handleResetData() {
     console.log("[handleResetData] Triggered");
     showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
-        if (dataRef) await deleteDoc(dataRef);
+        console.log("[handleResetData] Resetting data...");
+        
+        // 1. Update local state and storage FIRST to prevent sync restoration
         appData = getDefaultAppData();
         saveLocalData(appData);
-        await saveData();
+        
+        // 2. Overwrite Firestore with new default appData directly
+        if (dataRef && userId) {
+            try {
+                await setDoc(dataRef, appData);
+                console.log("[handleResetData] Firestore reset complete");
+            } catch (e) {
+                console.error("[handleResetData] Firestore reset failed", e);
+            }
+        }
+        
+        // 3. Update UI
         updateSettingsInputs();
         updateUI();
+        console.log("[handleResetData] Reset finish");
+        
+        // Close settings view after reset
+        if (!settingsView.classList.contains('hidden')) {
+            toggleSettingsView();
+        }
     });
 }
 
