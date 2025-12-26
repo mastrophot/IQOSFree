@@ -43,9 +43,9 @@ function loadLocalData() {
     return null;
 }
 
-function saveLocalData(data) {
+function saveLocalData(data, updateTimestamp = true) {
     if (!data) return;
-    data.updatedAt = Date.now();
+    if (updateTimestamp) data.updatedAt = Date.now();
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
 }
 
@@ -196,12 +196,12 @@ async function loadData() {
 
             // DECIDE HISTORY: If one side is significantly newer and empty, it's a RESET
             let finalHistory = [];
-            const isLocalReset = localHistory.length === 0 && remoteHistory.length > 0 && localUpdateTime > remoteUpdateTime;
-            const isRemoteReset = remoteHistory.length === 0 && localHistory.length > 0 && remoteUpdateTime > localUpdateTime;
+            const isLocalReset = localHistory.length === 0 && remoteHistory.length > 0 && (localUpdateTime > remoteUpdateTime);
+            const isRemoteReset = remoteHistory.length === 0 && localHistory.length > 0 && (remoteUpdateTime > localUpdateTime);
 
             if (isLocalReset || isRemoteReset) {
-                console.log(`[loadData] Detected RESET state. LocalReset: ${isLocalReset}, RemoteReset: ${isRemoteReset}`);
-                finalHistory = []; // Both result in empty if it's a reset
+                console.log(`[loadData] RESET DETECTED. LocalReset:${isLocalReset}, RemoteReset:${isRemoteReset}`);
+                finalHistory = []; 
             } else {
                 // Deduplicate history by timestamp (Normal Sync)
                 const allSmokes = [...localHistory, ...remoteHistory];
@@ -221,7 +221,7 @@ async function loadData() {
                 ...getDefaultAppData(),
                 ... (remoteUpdateTime > localUpdateTime ? remoteData : localData),
                 smokeHistory: finalHistory,
-                updatedAt: Math.max(remoteUpdateTime, localUpdateTime, Date.now())
+                updatedAt: Math.max(remoteUpdateTime, localUpdateTime)
             };
 
             // Fields to take from the latest state (most recent update)
@@ -839,10 +839,10 @@ async function handleResetData() {
         unsubscribeSnapshot = null;
     }
 
-    // 1. Update local state and storage FIRST
+    // 1. Update local state and storage FIRST (Future timestamp to dominate)
     appData = getDefaultAppData();
-    appData.updatedAt = Date.now() + 5000; // Future timestamp to ensure it dominates any incoming race condition
-    saveLocalData(appData);
+    appData.updatedAt = Date.now() + 20000; // 20 seconds in future
+    saveLocalData(appData, false); // CRITICAL: Don't overwrite our future timestamp!
     
     // 2. Overwrite Firestore
     if (dataRef && userId) {
@@ -851,6 +851,7 @@ async function handleResetData() {
             console.log("[handleResetData] Firestore reset complete");
         } catch (e) {
             console.error("[handleResetData] Firestore reset failed", e);
+            alert("Помилка при видаленні з сервера: " + e.message);
         }
     }
     
