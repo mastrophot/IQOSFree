@@ -94,6 +94,7 @@ const FIREBASE_SYNC_INTERVAL = 10000; // 10 секунд — швидша кро
 let userId = null;
 let dataRef = null;
 let unsubscribeSnapshot = null; // Real-time listener cleanup
+let showUndoUntil = 0; // Reactive Undo Visibility Window
 
 // --- DOM ELEMENTS ---
 // (Initialized in DOMContentLoaded)
@@ -310,8 +311,10 @@ function updateUI() {
     renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
     updateGlobalStats();
 
-    // Undo button visibility
-    if (appData.smokeHistory && appData.smokeHistory.length > 0) {
+    // Reactive Undo button visibility (60 second window)
+    const canUndo = appData.smokeHistory && appData.smokeHistory.length > 0 && Date.now() < showUndoUntil;
+    
+    if (canUndo) {
         undoSmokeButton.classList.remove('opacity-0', 'pointer-events-none');
     } else {
         undoSmokeButton.classList.add('opacity-0', 'pointer-events-none');
@@ -767,6 +770,10 @@ function handleSmoke(type = 'regular') {
     
     appData.lastSmokeTime = new Date().getTime();
     appData.smokeHistory.push({ timestamp: appData.lastSmokeTime, type: type });
+    
+    // Show undo button for 60 seconds
+    showUndoUntil = Date.now() + 60000;
+    
     saveData();
     updateUI();
 }
@@ -792,6 +799,7 @@ function handleUndoSmoke() {
     }
 
     appData.updatedAt = Date.now();
+    showUndoUntil = 0; // Hide immediately after undo
     saveData();
     updateUI();
 }
