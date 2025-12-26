@@ -857,10 +857,10 @@ async function handleResetData() {
         unsubscribeSnapshot = null;
     }
 
-    // 1. Update local state with a NUKED timestamp (1 hour in future)
-    // This ensures no incoming sync can POSSIBLY win for a long time
+    // 1. Update local state with a NUKED timestamp (5 seconds in future)
+    // This allows settings to be saved almost immediately after reset
     appData = getDefaultAppData();
-    appData.updatedAt = Date.now() + 3600000; 
+    appData.updatedAt = Date.now() + 5000; 
     saveLocalData(appData, false); 
     
     // 2. Overwrite Firestore
@@ -1168,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     const dataRefForce = doc(db, `artifacts/${appId}/users/${userId}/smokingData/data`);
                     const nukeData = getDefaultAppData();
-                    nukeData.updatedAt = Date.now() + 3600000; // 1 hour in future to dominate
+                    nukeData.updatedAt = Date.now() + 5000; // 5 seconds in future
                     await setDoc(dataRefForce, nukeData);
                     localStorage.removeItem('FORCE_FIREBASE_RESET');
                     console.log("[AUTH] Firestore wiped successfully. Flag cleared.");
