@@ -208,11 +208,14 @@ async function loadData() {
                 updatedAt: Math.max(remoteUpdateTime, localUpdateTime, Date.now())
             };
 
-            // Fields to take the "best" from
+            // Fields to take from the latest state (most recent update)
+            const latestData = remoteUpdateTime > localUpdateTime ? remoteData : localData;
+            appData.healthIntegrity = latestData.healthIntegrity ?? 100;
+            appData.evolutionPointsMs = latestData.evolutionPointsMs ?? 0;
+
+            // Fields to take the absolute "best" from
             appData.lastSmokeTime = Math.max(localData.lastSmokeTime || 0, remoteData.lastSmokeTime || 0) || null;
             appData.longestSmokeFreeStreakHours = Math.max(localData.longestSmokeFreeStreakHours || 0, remoteData.longestSmokeFreeStreakHours || 0);
-            appData.healthIntegrity = Math.max(localData.healthIntegrity || 0, remoteData.healthIntegrity || 0);
-            appData.evolutionPointsMs = Math.max(localData.evolutionPointsMs || 0, remoteData.evolutionPointsMs || 0);
             
             // If local history has more entries than remote, sync back once to share the new data
             if (localHistory.length > remoteHistory.length) {
@@ -533,8 +536,8 @@ function updateAvatar() { // Progressive Life Tree Logic 2025
     const diffHours = diffMs / (1000 * 60 * 60);
     
     if (diffMs > 0) {
-        // 1. Regenerate Health (User request: +10% per hour)
-        const regenAmount = diffHours * 10; 
+        // 1. Regenerate Health (User request slowed: +2.5% per hour)
+        const regenAmount = diffHours * 4; // 100% in 25 hours
         if (appData.healthIntegrity < 100) {
             appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
         }
@@ -646,8 +649,10 @@ async function renderLifeTree(stage, health) {
         img.src = processedSrc;
     }
 
-    const healthLevel = Math.max(1, Math.min(10, Math.ceil(health / 10)));
-    img.className = '';
+    const healthLevel = Math.max(1, Math.min(10, Math.floor(health / 10) + (health % 10 > 5 ? 1 : 0))); // Floor + bonus for >5%
+    if (health === 100) img.className = 'tree-full-health'; // Exact 100% marker if needed
+    else img.className = '';
+    
     img.classList.add(`tree-lvl-${healthLevel}`);
     if (stage === 5) img.classList.add('tree-stage-5');
     if (healthLevel < 5) img.classList.add('tree-sick');
@@ -750,8 +755,8 @@ function handleSmoke(type = 'regular') {
         }, 1200);
     }
 
-    // Integrity Deduction Logic (User request: Regular -5, Emergency -10)
-    const damage = type === 'regular' ? 5 : 10;
+    // Integrity Deduction Logic (Increased Impact)
+    const damage = type === 'regular' ? 10 : 20;
     appData.healthIntegrity = Math.max(0, appData.healthIntegrity - damage);
     
     // Growth Slowdown Logic (Bio-Core 2.1: Ultra-Progressive)
@@ -773,7 +778,7 @@ function handleUndoSmoke() {
     console.log(`[handleUndoSmoke] Undoing ${lastSmoke.type} smoke from ${new Date(lastSmoke.timestamp).toLocaleTimeString()}`);
 
     // Restore health & evolution points
-    const damage = lastSmoke.type === 'regular' ? 5 : 10;
+    const damage = lastSmoke.type === 'regular' ? 10 : 20;
     const msPenalty = lastSmoke.type === 'regular' ? (1000 * 60 * 60 * 1) : (1000 * 60 * 60 * 2);
 
     appData.healthIntegrity = Math.min(100, appData.healthIntegrity + damage);
