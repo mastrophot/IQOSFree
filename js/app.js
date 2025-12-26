@@ -109,6 +109,20 @@ let statisticsSection, smokeChartCanvas;
 let totalSmokesAllTimeEl, avgSmokesPerDayEl;
 let statsTabs, statsModeBtns;
 let treeContainerEl, toxicCloudEl, healthValueEl, growthStageEl; // New Life Tree Elements 2025
+// DOM Elements
+const syncIndicator = document.getElementById('syncIndicator');
+
+function updateSyncStatus(status) {
+    if (!syncIndicator) return;
+    syncIndicator.classList.remove('bg-slate-700', 'bg-emerald-500', 'bg-red-500', 'animate-pulse');
+    if (status === 'syncing') {
+        syncIndicator.classList.add('bg-slate-700', 'animate-pulse');
+    } else if (status === 'online') {
+        syncIndicator.classList.add('bg-emerald-500');
+    } else if (status === 'error') {
+        syncIndicator.classList.add('bg-red-500');
+    }
+}
 let insightsSection, peakHourValueEl, activityHeatmapEl, heatmapLabelsEl;
 let currentChartPeriod = 'day';
 let currentChartMode = 'sticks';
@@ -172,6 +186,7 @@ async function loadData() {
 
     // Use onSnapshot for REAL-TIME synchronization
     unsubscribeSnapshot = onSnapshot(dataRef, async (docSnap) => {
+        updateSyncStatus('online');
         let remoteData = null;
         if (docSnap.exists()) {
             remoteData = docSnap.data();
@@ -283,10 +298,13 @@ async function loadData() {
 async function saveData() {
     saveLocalData(appData);
     if (!dataRef || !userId) return;
+    updateSyncStatus('syncing');
     try {
         await setDoc(dataRef, appData);
+        updateSyncStatus('online');
         console.log("Data saved to Firestore.");
     } catch (error) {
+        updateSyncStatus('error');
         console.error("Error saving data to Firestore: ", error);
     }
 }
@@ -833,35 +851,36 @@ async function handleResetData() {
     
     console.log("[handleResetData] Resetting data...");
     
-    // 0. STOP listener to prevent "Undead Data" bounce
+    // 0. STOP listener
     if (unsubscribeSnapshot) {
         unsubscribeSnapshot();
         unsubscribeSnapshot = null;
     }
 
-    // 1. Update local state and storage FIRST (Future timestamp to dominate)
+    // 1. Update local state with a NUKED timestamp (1 hour in future)
+    // This ensures no incoming sync can POSSIBLY win for a long time
     appData = getDefaultAppData();
-    appData.updatedAt = Date.now() + 20000; // 20 seconds in future
-    saveLocalData(appData, false); // CRITICAL: Don't overwrite our future timestamp!
+    appData.updatedAt = Date.now() + 3600000; 
+    saveLocalData(appData, false); 
     
     // 2. Overwrite Firestore
+    updateSyncStatus('syncing');
     if (dataRef && userId) {
         try {
             await setDoc(dataRef, appData);
-            console.log("[handleResetData] Firestore reset complete");
+            updateSyncStatus('online');
+            console.log("[saveData] Saved to Firestore successfully");
         } catch (e) {
-            console.error("[handleResetData] Firestore reset failed", e);
-            alert("Помилка при видаленні з сервера: " + e.message);
+            updateSyncStatus('error');
+            console.error("[saveData] Failed to save to Firestore:", e);
+            alert("Помилка синхронізації при видаленні. Спробуйте ще раз.");
         }
     }
     
-    // 3. Restart listener & Update UI
-    await loadData(); // Re-initializes everything including onSnapshot
-    updateSettingsInputs();
-    updateUI();
-    console.log("[handleResetData] Reset finish");
-    
-    if (!settingsView.classList.contains('hidden')) toggleSettingsView();
+    // 3. NUCLEAR RELOAD
+    // Instead of rebuilding UI, we reload the whole page to get a fresh loadData cycle
+    alert("Дані успішно видалено. Додаток перезавантажиться.");
+    window.location.reload();
 }
 
 async function handleForceSync() {
@@ -869,6 +888,7 @@ async function handleForceSync() {
     console.log("[handleForceSync] Manual sync triggered...");
     forceSyncButton.disabled = true;
     forceSyncButton.innerHTML = "🕒 СИНХРОНІЗУЄМО...";
+    updateSyncStatus('syncing');
     
     try {
         const docSnap = await getDoc(dataRef);
@@ -903,8 +923,10 @@ async function handleForceSync() {
             updateUI();
             console.log("[handleForceSync] Sync complete. Merged sticks:", uniqueSmokes.length);
         }
+        updateSyncStatus('online');
     } catch (e) {
         console.error("[handleForceSync] Error:", e);
+        updateSyncStatus('error');
     } finally {
         setTimeout(() => {
             if (forceSyncButton) {
