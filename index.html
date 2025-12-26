@@ -68,7 +68,7 @@
                         <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
                             Кидай Курити
                         </h1>
-                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.1.55</span>
+                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.1.56</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <p id="userStatusDisplay" class="text-[10px] text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
@@ -279,7 +279,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                 СИНХРОНІЗАЦІЯ
                             </button>
-                            <button id="resetDataButton" onclick="alert('Reset button clicked!'); triggerResetData()" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
+                            <button id="resetDataButton" onclick="triggerResetData()" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
                                 СНУЛИТИ ДАНІ
                             </button>
                         </div>
@@ -339,7 +339,7 @@
 
     <!-- Robust Service Worker Registration -->
     <script>
-        const SW_VERSION = 'v2.1.55';
+        const SW_VERSION = 'v2.1.56';
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').then(reg => {

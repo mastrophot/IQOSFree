@@ -184,7 +184,6 @@ async function loadData() {
         if (remoteData && localData) {
             console.log("[loadData] Merging remote and local data...");
             
-            // Deduplicate history by timestamp
             const localHistory = (localData.smokeHistory || []).map(s => 
                 typeof s === 'number' ? { timestamp: s, type: 'regular' } : s
             );
@@ -192,28 +191,36 @@ async function loadData() {
                 typeof s === 'number' ? { timestamp: s, type: 'regular' } : s
             );
             
-            const allSmokes = [...localHistory, ...remoteHistory];
-            const uniqueSmokes = [];
-            const seenTimestamps = new Set();
-            
-            for (const smoke of allSmokes) {
-                if (!seenTimestamps.has(smoke.timestamp)) {
-                    seenTimestamps.add(smoke.timestamp);
-                    uniqueSmokes.push(smoke);
-                }
-            }
-            
-            uniqueSmokes.sort((a, b) => a.timestamp - b.timestamp);
-            
-            // Only update appData if remote is newer or has more history
             const remoteUpdateTime = remoteData.updatedAt || 0;
             const localUpdateTime = localData.updatedAt || 0;
+
+            // DECIDE HISTORY: If one side is significantly newer and empty, it's a RESET
+            let finalHistory = [];
+            const isLocalReset = localHistory.length === 0 && remoteHistory.length > 0 && localUpdateTime > remoteUpdateTime;
+            const isRemoteReset = remoteHistory.length === 0 && localHistory.length > 0 && remoteUpdateTime > localUpdateTime;
+
+            if (isLocalReset || isRemoteReset) {
+                console.log(`[loadData] Detected RESET state. LocalReset: ${isLocalReset}, RemoteReset: ${isRemoteReset}`);
+                finalHistory = []; // Both result in empty if it's a reset
+            } else {
+                // Deduplicate history by timestamp (Normal Sync)
+                const allSmokes = [...localHistory, ...remoteHistory];
+                const seenTimestamps = new Set();
+                
+                for (const smoke of allSmokes) {
+                    if (!seenTimestamps.has(smoke.timestamp)) {
+                        seenTimestamps.add(smoke.timestamp);
+                        finalHistory.push(smoke);
+                    }
+                }
+                finalHistory.sort((a, b) => a.timestamp - b.timestamp);
+            }
 
             // Update appData with merged results
             appData = {
                 ...getDefaultAppData(),
                 ... (remoteUpdateTime > localUpdateTime ? remoteData : localData),
-                smokeHistory: uniqueSmokes,
+                smokeHistory: finalHistory,
                 updatedAt: Math.max(remoteUpdateTime, localUpdateTime, Date.now())
             };
 
@@ -826,11 +833,18 @@ async function handleResetData() {
     
     console.log("[handleResetData] Resetting data...");
     
-    // 1. Update local state and storage FIRST to prevent sync restoration
+    // 0. STOP listener to prevent "Undead Data" bounce
+    if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+    }
+
+    // 1. Update local state and storage FIRST
     appData = getDefaultAppData();
+    appData.updatedAt = Date.now() + 5000; // Future timestamp to ensure it dominates any incoming race condition
     saveLocalData(appData);
     
-    // 2. Overwrite Firestore with new default appData directly
+    // 2. Overwrite Firestore
     if (dataRef && userId) {
         try {
             await setDoc(dataRef, appData);
@@ -840,15 +854,13 @@ async function handleResetData() {
         }
     }
     
-    // 3. Update UI
+    // 3. Restart listener & Update UI
+    await loadData(); // Re-initializes everything including onSnapshot
     updateSettingsInputs();
     updateUI();
     console.log("[handleResetData] Reset finish");
     
-    // Close settings view after reset
-    if (!settingsView.classList.contains('hidden')) {
-        toggleSettingsView();
-    }
+    if (!settingsView.classList.contains('hidden')) toggleSettingsView();
 }
 
 async function handleForceSync() {
