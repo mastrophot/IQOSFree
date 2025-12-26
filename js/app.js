@@ -6,6 +6,13 @@ import { firebaseConfig, appId } from './firebase-config.js';
 import { getStickPluralForm, formatHoursToReadable, formatMinutesToReadable } from './utils.js';
 import { renderSmokeChart, destroyChart } from './charts.js';
 
+// --- BIO-CORE 3.0 CONSTANTS (Mathematical State) ---
+const REGEN_PER_HOUR = 4;
+const DAMAGE_REGULAR = 12;
+const DAMAGE_EMERGENCY = 25;
+const PENALTY_REGULAR_MS = 3600000;   // 1h
+const PENALTY_EMERGENCY_MS = 7200000; // 2h
+
 // --- APPLICATION STATE ---
 let app;
 let db;
@@ -25,8 +32,6 @@ const getDefaultAppData = () => ({
     },
     longestSmokeFreeStreakHours: 0,
     appStartDate: new Date().setHours(0,0,0,0),
-    lastIntegrityUpdate: Date.now(),
-    evolutionPointsMs: 0,
     settingsUpdatedAt: Date.now(),
     updatedAt: Date.now()
 });
@@ -223,9 +228,6 @@ async function loadData() {
                 // 2. STATE & MERGE: Only if remote update is strictly newer
                 if (remoteUpdateTime > localUpdateTime) {
                     console.log("[Sync] Remote data is NEWER. Merging state...");
-                    if (remoteData.healthIntegrity !== undefined) appData.healthIntegrity = Number(remoteData.healthIntegrity);
-                    if (remoteData.evolutionPointsMs !== undefined) appData.evolutionPointsMs = Number(remoteData.evolutionPointsMs);
-                    if (remoteData.lastIntegrityUpdate !== undefined) appData.lastIntegrityUpdate = Number(remoteData.lastIntegrityUpdate);
                     if (remoteData.appStartDate !== undefined) appData.appStartDate = Number(remoteData.appStartDate);
                     appData.updatedAt = remoteUpdateTime;
                 } else {
@@ -579,47 +581,74 @@ function updateInsights() {
 
 
 
-function updateAvatar() { // Progressive Life Tree Logic 2025
+/**
+ * BIO-CORE 3.0: High-Precision Mathematical State Engine
+ * Calculates Health and Evolution points on-the-fly from history.
+ */
+function calculateTreeState() {
+    const now = Date.now();
+    const appStart = appData.appStartDate || (now - 86400000); // Fallback to 1 day ago
+    
+    // 1. Calculate Health (Sequential Integration)
+    let health = 100;
+    let lastT = appStart;
+    
+    // Sort history just in case it's not
+    const history = [...appData.smokeHistory].sort((a,b) => a.timestamp - b.timestamp);
+    
+    for (const record of history) {
+        if (record.timestamp < appStart) continue; // Ignore pre-app sticks
+        
+        // Regen since last event
+        const elapsedHours = (record.timestamp - lastT) / 3600000;
+        if (elapsedHours > 0) {
+            health = Math.min(100, health + (elapsedHours * REGEN_PER_HOUR));
+        }
+        
+        // Damage from this stick
+        const damage = record.type === 'emergency' ? DAMAGE_EMERGENCY : DAMAGE_REGULAR;
+        health = Math.max(0, health - damage);
+        
+        lastT = record.timestamp;
+    }
+    
+    // Final regen up to NOW
+    const finalElapsedHours = (now - lastT) / 3600000;
+    if (finalElapsedHours > 0) {
+        health = Math.min(100, health + (finalElapsedHours * REGEN_PER_HOUR));
+    }
+    
+    // 2. Calculate Evolution (Total Time - Total Penalties)
+    const totalPossibleTime = now - appStart;
+    const totalPenalty = history.reduce((acc, s) => {
+        const penalty = s.type === 'emergency' ? PENALTY_EMERGENCY_MS : PENALTY_REGULAR_MS;
+        return acc + penalty;
+    }, 0);
+    
+    const evolutionMs = Math.max(0, totalPossibleTime - totalPenalty);
+    
+    return { 
+        health: Math.round(health), 
+        evolutionMs 
+    };
+}
+
+
+function updateAvatar() { 
     if (!treeContainerEl || !healthValueEl) return;
     
-    // Safety Fallbacks & Precision Conversion
-    appData.healthIntegrity = (appData.healthIntegrity === undefined || appData.healthIntegrity === null) ? 100 : Number(appData.healthIntegrity);
-    if (isNaN(appData.healthIntegrity)) appData.healthIntegrity = 100;
-    
-    appData.evolutionPointsMs = Number(appData.evolutionPointsMs) || 0;
-    appData.lastIntegrityUpdate = Number(appData.lastIntegrityUpdate) || Date.now();
-    
     const now = Date.now();
-    const diffMs = now - appData.lastIntegrityUpdate;
-    const diffHours = diffMs / (1000 * 60 * 60);
+    const { health, evolutionMs } = calculateTreeState();
     
-    if (diffMs > 0 && diffMs < 86400000) { // Limit regen to max 24h at once to prevent massive jumps
-        // 1. Regenerate Health (User request slowed: +4% per hour)
-        const regenAmount = diffHours * 4; 
-        if (appData.healthIntegrity < 100) {
-            appData.healthIntegrity = Math.min(100, appData.healthIntegrity + regenAmount);
-        }
-
-        // 2. Continuous Growth (Tree gains "XP" every second)
-        // This xp determines the stage, but it will be reduced when smoking
-        appData.evolutionPointsMs += diffMs;
-        
-        appData.lastIntegrityUpdate = now;
-        
-        // Зберігаємо прогрес локально щоб не втратити при перезавантаженні
-        // Зберігаємо кожну секунду для надійності, але НЕ оновлюємо updatedAt для синхронізації
-        saveLocalData(appData, false);
-        
-        // Періодична синхронізація з Firestore (кожні 15 секунд для прогресу, без зміни updatedAt)
-        if (now - lastFirebaseSyncTime > 15000) {
-            lastFirebaseSyncTime = now;
-            console.log("[Sync] Scheduled background progress sync...");
-            saveData(false); 
-        }
+    // Periodic synchronization with Firestore (still needed to push history reliably)
+    if (now - lastFirebaseSyncTime > 15000) {
+        lastFirebaseSyncTime = now;
+        console.log("[Sync] Background history sync...");
+        saveData(false); 
     }
 
     // 3. Evolution Stage (Based on Evolution Points / Experience)
-    const evolutionDays = appData.evolutionPointsMs / (1000 * 60 * 60 * 24);
+    const evolutionDays = evolutionMs / (1000 * 60 * 60 * 24);
     
     let stage = 1;
     let stageTitle = "Паросток";
@@ -629,10 +658,9 @@ function updateAvatar() { // Progressive Life Tree Logic 2025
     else if (evolutionDays >= 1) { stage = 2; stageTitle = "Саджанець"; }
 
     // 4. Render Tree Stage & Health Levels
-    renderLifeTree(stage, appData.healthIntegrity);
+    renderLifeTree(stage, health);
 
     // 5. Update Labels
-    const health = Math.round(appData.healthIntegrity);
     healthValueEl.textContent = `Здоров'я: ${health}%`;
     if (growthStageEl) growthStageEl.textContent = `Стадія: ${stage} / 5 (${stageTitle})`;
     
@@ -813,16 +841,6 @@ function handleSmoke(type = 'regular') {
             toxicCloudEl.classList.remove('active');
         }, 1200);
     }
-
-    // Integrity Deduction Logic (Increased Impact)
-    const damage = type === 'regular' ? 12 : 25; 
-    appData.healthIntegrity = Math.max(0, appData.healthIntegrity - damage);
-    
-    // Growth Slowdown Logic (Bio-Core 2.1: Ultra-Progressive)
-    // Regular penalty: 1 hour of progress (Equilibrium at 24/day)
-    // Emergency penalty: 2 hours of progress
-    const msPenalty = type === 'regular' ? (1000 * 60 * 60 * 1) : (1000 * 60 * 60 * 2);
-    appData.evolutionPointsMs = Math.max(0, appData.evolutionPointsMs - msPenalty);
     
     appData.lastSmokeTime = new Date().getTime();
     appData.smokeHistory.push({ timestamp: appData.lastSmokeTime, type: type });
@@ -870,14 +888,7 @@ function hideUndoToast() {
 function handleUndoSmoke() {
     if (appData.smokeHistory.length === 0) return;
     
-    const lastSmoke = appData.smokeHistory.pop();
-    const damage = lastSmoke.type === 'regular' ? 10 : 20;
-    appData.healthIntegrity = Math.min(100, appData.healthIntegrity + damage);
-    
-    // Restore evolution progress
-    const msPenalty = lastSmoke.type === 'regular' ? (1000 * 60 * 60 * 1) : (1000 * 60 * 60 * 2);
-    appData.evolutionPointsMs += msPenalty;
-    
+    appData.smokeHistory.pop();
     appData.lastSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[appData.smokeHistory.length - 1].timestamp : null;
     appData.updatedAt = Date.now();
     
@@ -1278,6 +1289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 userStatusDisplay.textContent = `Привіт, ${userName}!`;
                 accountBadge.textContent = "GOOGLE SYNC";
                 accountBadge.classList.replace('hidden', 'inline-block');
+                accountBadge.innerHTML = `GOOGLE SYNC <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.4.0</span>`;
                 accountBadge.className = "text-[8px] px-1.5 py-0.5 rounded font-bold inline-block bg-emerald-500/20 text-emerald-500";
                 signInGoogleButton.classList.add('hidden'); 
                 signOutButton.classList.remove('hidden'); 
