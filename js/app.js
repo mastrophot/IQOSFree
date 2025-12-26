@@ -822,33 +822,33 @@ function handleSaveSettings() {
 
 async function handleResetData() {
     console.log("[handleResetData] Triggered");
-    showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
-        console.log("[handleResetData] Resetting data...");
-        
-        // 1. Update local state and storage FIRST to prevent sync restoration
-        appData = getDefaultAppData();
-        saveLocalData(appData);
-        
-        // 2. Overwrite Firestore with new default appData directly
-        if (dataRef && userId) {
-            try {
-                await setDoc(dataRef, appData);
-                console.log("[handleResetData] Firestore reset complete");
-            } catch (e) {
-                console.error("[handleResetData] Firestore reset failed", e);
-            }
+    if (!confirm("Це видалить всю вашу історію та статистику. Ви впевнені?")) return;
+    
+    console.log("[handleResetData] Resetting data...");
+    
+    // 1. Update local state and storage FIRST to prevent sync restoration
+    appData = getDefaultAppData();
+    saveLocalData(appData);
+    
+    // 2. Overwrite Firestore with new default appData directly
+    if (dataRef && userId) {
+        try {
+            await setDoc(dataRef, appData);
+            console.log("[handleResetData] Firestore reset complete");
+        } catch (e) {
+            console.error("[handleResetData] Firestore reset failed", e);
         }
-        
-        // 3. Update UI
-        updateSettingsInputs();
-        updateUI();
-        console.log("[handleResetData] Reset finish");
-        
-        // Close settings view after reset
-        if (!settingsView.classList.contains('hidden')) {
-            toggleSettingsView();
-        }
-    });
+    }
+    
+    // 3. Update UI
+    updateSettingsInputs();
+    updateUI();
+    console.log("[handleResetData] Reset finish");
+    
+    // Close settings view after reset
+    if (!settingsView.classList.contains('hidden')) {
+        toggleSettingsView();
+    }
 }
 
 async function handleForceSync() {
@@ -904,43 +904,43 @@ async function handleForceSync() {
 
 async function handleDeepReset() {
     console.log("[handleDeepReset] Triggered");
-    showConfirm("Це повністю очистить кеш додатку та вийде з акаунту. Ви впевнені?", async () => {
-        console.log("[DeepReset] Starting nuclear cleanup...");
-        
-        // 0. Sign out from Firebase if authenticated
-        if (auth) {
-            try {
-                await signOut(auth);
-                console.log("[DeepReset] Firebase signed out");
-            } catch (e) {
-                console.error("[DeepReset] Sign out error:", e);
-            }
-        }
+    if (!confirm("Це повністю очистить кеш додатку та вийде з акаунту. Ви впевнені?")) return;
 
-        // 1. Clear Local Storage
-        localStorage.clear();
-        
-        // 2. Unregister ALL Service Workers
-        if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            for (let reg of regs) {
-                await reg.unregister();
-                console.log("[DeepReset] SW unregistered");
-            }
+    console.log("[DeepReset] Starting nuclear cleanup...");
+    
+    // 0. Sign out from Firebase if authenticated
+    if (auth) {
+        try {
+            await signOut(auth);
+            console.log("[DeepReset] Firebase signed out");
+        } catch (e) {
+            console.error("[DeepReset] Sign out error:", e);
         }
-        
-        // 3. Clear Caches
-        if ('caches' in window) {
-            const keys = await caches.keys();
-            for (let key of keys) {
-                await caches.delete(key);
-                console.log("[DeepReset] Cache deleted:", key);
-            }
-        }
+    }
 
-        // 4. Reload
-        window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
-    });
+    // 1. Clear Local Storage
+    localStorage.clear();
+    
+    // 2. Unregister ALL Service Workers
+    if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (let reg of regs) {
+            await reg.unregister();
+            console.log("[DeepReset] SW unregistered");
+        }
+    }
+    
+    // 3. Clear Caches
+    if ('caches' in window) {
+        const keys = await caches.keys();
+        for (let key of keys) {
+            await caches.delete(key);
+            console.log("[DeepReset] Cache deleted:", key);
+        }
+    }
+
+    // 4. Reload
+    window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
 }
 
 function toggleSettingsView() {
