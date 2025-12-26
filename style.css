@@ -111,8 +111,12 @@ body {
 }
 
 .glass-panel:hover {
-    transform: translateY(-4px);
-    background: oklch(24% 0.03 258 / 50%);
+  transform: translateY(-4px);
+  background: oklch(24% 0.03 258 / 50%);
+}
+
+#balanceCard {
+  transition: all 0.5s ease-in-out;
 }
 
 @container (min-width: 320px) {
@@ -348,9 +352,19 @@ body {
 }
 
 #confirmModal {
-    z-index: 100;
+  z-index: 1000;
+}
+
+#confirmModal.hidden {
+  display: none !important;
+  pointer-events: none;
+}
+
+#confirmModal:not(.hidden) {
+  display: flex !important;
+  pointer-events: auto;
 }
 
 #confirmModal > div:last-child {
-    box-shadow: 0 20px 50px oklch(0% 0 0 / 80%);
+  box-shadow: 0 40px 100px oklch(0% 0 0 / 90%);
 }

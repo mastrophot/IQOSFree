@@ -368,10 +368,13 @@ function updateStatistics(now) {
     const actualTotalSmokes = appData.smokeHistory.length;
     
     // Financial Balance Logic (Signed Profit/Loss)
+    // We calculate all-time balance vs old habit, but visually penalize if daily goal is exceeded
     const balance = (expectedTotalSmokes - actualTotalSmokes) * pricePerCig;
     financialBalanceValueEl.textContent = `${balance < 0 ? '-' : '+'}$${Math.abs(balance).toFixed(2)}`;
 
-    if (balance >= 0) {
+    const isDailyGoalExceeded = smokedTodayCount > desiredDailySticks;
+
+    if (balance >= 0 && !isDailyGoalExceeded) {
         financialBalanceValueEl.classList.remove('text-red-500');
         financialBalanceValueEl.classList.add('text-emerald-400');
         financialBalanceLabelEl.textContent = 'Зекономлено (Профіт)';
@@ -380,7 +383,7 @@ function updateStatistics(now) {
     } else {
         financialBalanceValueEl.classList.remove('text-emerald-400');
         financialBalanceValueEl.classList.add('text-red-500');
-        financialBalanceLabelEl.textContent = 'Перевитрата (Дефіцит)';
+        financialBalanceLabelEl.textContent = isDailyGoalExceeded ? 'Ціль на сьогодні порушена!' : 'Перевитрата (Дефіцит)';
         balanceCardEl.classList.remove('border-emerald-500/50');
         balanceCardEl.classList.add('border-red-500/50');
         balanceIconEl.textContent = '⚠️';
