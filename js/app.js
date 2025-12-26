@@ -198,73 +198,72 @@ async function loadData() {
         const localData = loadLocalData();
 
         // SMART MERGE: Separates Settings (latest wins) from History (additive wins)
-        if (remoteData && localData) {
-            const remoteUpdateTime = remoteData.updatedAt || 0;
-            const localUpdateTime = localData.updatedAt || 0;
-            
-            console.log(`[loadData] Sync Event. L:${localUpdateTime} R:${remoteUpdateTime}`);
-
-            // 1. SETTINGS: Trust the latest settings update specifically
-            const remoteSettingsTime = remoteData.settingsUpdatedAt || 0;
-            const localSettingsTime = localData.settingsUpdatedAt || 0;
-            
-            if (remoteSettingsTime > localSettingsTime) {
-                console.log("[loadData] Remote settings are newer. Updating settings block.");
-                appData.settings = remoteData.settings || appData.settings;
-                appData.settingsUpdatedAt = remoteSettingsTime;
+            if (remoteData && localData) {
+                const remoteUpdateTime = remoteData.updatedAt || 0;
+                const localUpdateTime = localData.updatedAt || 0;
                 
-                // Update sync time display
-                if (lastSettingsSyncTimeEl) {
-                    const date = new Date(remoteSettingsTime);
-                    lastSettingsSyncTimeEl.textContent = date.toLocaleTimeString();
-                }
-            }
+                console.log(`[Sync] Check. Remote Update: ${new Date(remoteUpdateTime).toLocaleTimeString()} (${remoteUpdateTime})`);
+                console.log(`[Sync] Check. Local Update: ${new Date(localUpdateTime).toLocaleTimeString()} (${localUpdateTime})`);
 
-            // 1b. STATE: Sync progressive state if remote is generally newer
-            if (remoteUpdateTime > localUpdateTime) {
-                console.log("[loadData] Remote state is newer. Updating health and progress.");
-                appData.healthIntegrity = remoteData.healthIntegrity ?? appData.healthIntegrity;
-                appData.evolutionPointsMs = remoteData.evolutionPointsMs ?? appData.evolutionPointsMs;
-                appData.lastIntegrityUpdate = remoteData.lastIntegrityUpdate ?? appData.lastIntegrityUpdate;
-                appData.appStartDate = remoteData.appStartDate ?? appData.appStartDate;
-            }
-
-            // 1c. RECORDS: Always take the best record
-            appData.longestSmokeFreeStreakHours = Math.max(
-                appData.longestSmokeFreeStreakHours || 0,
-                remoteData.longestSmokeFreeStreakHours || 0
-            );
-
-            // 2. HISTORY: Additive Merge (Safest for multi-device)
-            const localHist = (localData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
-            const remoteHist = (remoteData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
-            
-            // SPECIAL CASE: If remote is newer AND history is empty, it's a RESET
-            if (remoteHist.length === 0 && localHist.length > 0 && remoteUpdateTime > localUpdateTime + 2000) {
-                console.log("[loadData] Remote Reset detected. Clearing local history.");
-                appData.smokeHistory = [];
-            } else {
-                // Deduplicate
-                const allSmokes = [...localHist, ...remoteHist];
-                const seen = new Set();
-                const unique = [];
-                for (const s of allSmokes) {
-                    if (!seen.has(s.timestamp)) {
-                        seen.add(s.timestamp);
-                        unique.push(s);
+                // 1. SETTINGS: Trust the latest settings update specifically
+                const remoteSettingsTime = remoteData.settingsUpdatedAt || 0;
+                const localSettingsTime = localData.settingsUpdatedAt || 0;
+                
+                if (remoteSettingsTime > localSettingsTime) {
+                    console.log("[Sync] Remote settings are NEWER. Updating settings.");
+                    appData.settings = remoteData.settings || appData.settings;
+                    appData.settingsUpdatedAt = remoteSettingsTime;
+                    
+                    if (lastSettingsSyncTimeEl) {
+                        lastSettingsSyncTimeEl.textContent = new Date(remoteSettingsTime).toLocaleTimeString();
                     }
                 }
-                unique.sort((a, b) => a.timestamp - b.timestamp);
-                appData.smokeHistory = unique;
-            }
 
-            appData.updatedAt = Math.max(localUpdateTime, remoteUpdateTime);
-            appData.lastSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[appData.smokeHistory.length-1].timestamp : null;
+                // 2. STATE & MERGE: Only if remote update is strictly newer
+                if (remoteUpdateTime > localUpdateTime) {
+                    console.log("[Sync] Remote data is NEWER. Merging state...");
+                    appData.healthIntegrity = remoteData.healthIntegrity ?? appData.healthIntegrity;
+                    appData.evolutionPointsMs = remoteData.evolutionPointsMs ?? appData.evolutionPointsMs;
+                    appData.lastIntegrityUpdate = remoteData.lastIntegrityUpdate ?? appData.lastIntegrityUpdate;
+                    appData.appStartDate = remoteData.appStartDate ?? appData.appStartDate;
+                    appData.updatedAt = remoteUpdateTime;
+                } else {
+                    console.log("[Sync] Local data is up-to-date or newer. Skipping state merge.");
+                }
 
-            // Save merged state locally
-            saveLocalData(appData, false);
-            
-        } else if (remoteData) {
+                // 3. RECORDS: Maximum wins
+                const oldRecord = appData.longestSmokeFreeStreakHours || 0;
+                appData.longestSmokeFreeStreakHours = Math.max(oldRecord, remoteData.longestSmokeFreeStreakHours || 0);
+                if (appData.longestSmokeFreeStreakHours > oldRecord) console.log("[Sync] New record updated from remote!");
+
+                // 4. HISTORY: Additive Merge
+                const localHist = (localData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
+                const remoteHist = (remoteData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
+                
+                if (remoteHist.length === 0 && localHist.length > 0 && remoteUpdateTime > localUpdateTime + 5000) {
+                    console.log("[Sync] Remote Reset detected. Clearing local history.");
+                    appData.smokeHistory = [];
+                } else {
+                    const allSmokes = [...localHist, ...remoteHist];
+                    const seen = new Set();
+                    const unique = [];
+                    for (const s of allSmokes) {
+                        if (!seen.has(s.timestamp)) {
+                            seen.add(s.timestamp);
+                            unique.push(s);
+                        }
+                    }
+                    unique.sort((a, b) => a.timestamp - b.timestamp);
+                    if (unique.length !== appData.smokeHistory.length) {
+                        console.log(`[Sync] History merged. Count: ${appData.smokeHistory.length} -> ${unique.length}`);
+                    }
+                    appData.smokeHistory = unique;
+                }
+
+                appData.lastSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[appData.smokeHistory.length-1].timestamp : null;
+                saveLocalData(appData, false);
+                
+            } else if (remoteData) {
             console.log("[loadData] Using remote data.");
             appData = { ...getDefaultAppData(), ...remoteData };
         } else if (localData) {
@@ -305,17 +304,21 @@ async function loadData() {
     });
 }
 
-async function saveData() {
-    saveLocalData(appData);
+async function saveData(updateTimestamp = false) {
+    if (updateTimestamp) {
+        appData.updatedAt = Date.now();
+        console.log(`[Sync] Manually bumping updatedAt: ${appData.updatedAt}`);
+    }
+    saveLocalData(appData, false); 
     if (!dataRef || !userId) return;
     updateSyncStatus('syncing');
     try {
         await setDoc(dataRef, appData);
         updateSyncStatus('online');
-        console.log("Data saved to Firestore.");
+        console.log("[Sync] Data pushed to Firestore.");
     } catch (error) {
         updateSyncStatus('error');
-        console.error("Error saving data to Firestore: ", error);
+        console.error("[Sync] Error pushing to Firestore: ", error);
     }
 }
 
@@ -590,10 +593,11 @@ function updateAvatar() { // Progressive Life Tree Logic 2025
         // Зберігаємо кожну секунду для надійності, але НЕ оновлюємо updatedAt для синхронізації
         saveLocalData(appData, false);
         
-        // Періодична синхронізація з Firestore (кожні 30 секунд)
-        if (now - lastFirebaseSyncTime > FIREBASE_SYNC_INTERVAL) {
+        // Періодична синхронізація з Firestore (кожні 15 секунд для прогресу, без зміни updatedAt)
+        if (now - lastFirebaseSyncTime > 15000) {
             lastFirebaseSyncTime = now;
-            saveData();
+            console.log("[Sync] Scheduled background progress sync...");
+            saveData(false); 
         }
     }
 
@@ -809,7 +813,7 @@ function handleSmoke(type = 'regular') {
     
     // Show undo button for 60 seconds
     
-    saveData();
+    saveData(true);
     updateUI();
 }
 
@@ -853,7 +857,7 @@ function handleSaveSettings() {
     appData.settingsUpdatedAt = Date.now();
     appData.updatedAt = Date.now();
     
-    saveData();
+    saveData(false); // Already updated timestamps above
     updateUI();
     toggleSettingsView();
 }
