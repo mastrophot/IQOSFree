@@ -367,23 +367,24 @@ function updateStatistics(now) {
     const expectedTotalSmokes = daysSinceAppStart * oldHabit; 
     const actualTotalSmokes = appData.smokeHistory.length;
     
-    // Financial Balance Logic (Signed Profit/Loss)
-    // We calculate all-time balance vs old habit, but visually penalize if daily goal is exceeded
-    const balance = (expectedTotalSmokes - actualTotalSmokes) * pricePerCig;
-    financialBalanceValueEl.textContent = `${balance < 0 ? '-' : '+'}$${Math.abs(balance).toFixed(2)}`;
+    // Today-Centric Balance Logic (Savings/Loss vs Goal)
+    const todayGoalCount = desiredDailySticks;
+    const todayBalance = (todayGoalCount - smokedTodayCount) * pricePerCig;
+    financialBalanceValueEl.textContent = `${todayBalance < 0 ? '-' : '+'}$${Math.abs(todayBalance).toFixed(2)}`;
 
     const isDailyGoalExceeded = smokedTodayCount > desiredDailySticks;
 
-    if (balance >= 0 && !isDailyGoalExceeded) {
+    if (!isDailyGoalExceeded) {
         financialBalanceValueEl.classList.remove('text-red-500');
         financialBalanceValueEl.classList.add('text-emerald-400');
-        financialBalanceLabelEl.textContent = 'Зекономлено (Профіт)';
-        balanceCardEl.classList.replace('border-red-500/50', 'border-emerald-500/50');
+        financialBalanceLabelEl.textContent = 'Баланс за сьогодні (Економія)';
+        balanceCardEl.classList.remove('border-red-500/50');
+        balanceCardEl.classList.add('border-emerald-500/50');
         balanceIconEl.textContent = '💰';
     } else {
         financialBalanceValueEl.classList.remove('text-emerald-400');
         financialBalanceValueEl.classList.add('text-red-500');
-        financialBalanceLabelEl.textContent = isDailyGoalExceeded ? 'Ціль на сьогодні порушена!' : 'Перевитрата (Дефіцит)';
+        financialBalanceLabelEl.textContent = 'Ціль на сьогодні порушена!';
         balanceCardEl.classList.remove('border-emerald-500/50');
         balanceCardEl.classList.add('border-red-500/50');
         balanceIconEl.textContent = '⚠️';
@@ -856,6 +857,7 @@ function handleSaveSettings() {
 }
 
 async function handleResetData() {
+    alert("[DEBUG] Reset Data clicked");
     console.log("[handleResetData] Triggered");
     showConfirm("Це видалить всю вашу історію та статистику. Ви впевнені?", async () => {
         console.log("[handleResetData] Resetting data...");
