@@ -389,20 +389,7 @@ body {
     border-color: oklch(62% 0.22 28 / 50%);
 }
 
-#confirmModal {
-  z-index: 1000;
-}
-
-#confirmModal.hidden {
-  display: none !important;
-  pointer-events: none;
-}
-
-#confirmModal:not(.hidden) {
-  display: flex !important;
-  pointer-events: auto;
-}
-
-#confirmModal > div:last-child {
-  box-shadow: 0 40px 100px oklch(0% 0 0 / 90%);
+/* Fix Native Dialog default visibility */
+dialog:not([open]) {
+    display: none !important;
 }
