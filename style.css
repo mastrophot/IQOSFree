@@ -32,14 +32,20 @@ body {
     min-height: 100dvh;
 }
 
-/* --- Typography Redesigned 2025 --- */
+/* --- Typography Redesigned 2026 --- */
+.font-display {
+    font-family: 'Outfit', system-ui, sans-serif;
+}
+
 .timer-text {
-    font-size: clamp(3.5rem, 18vw, 6rem); /* Fluid Typography 2025 */
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: clamp(3.5rem, 18vw, 6rem); /* Fluid Typography 2026 */
     line-height: 1;
     font-variant-numeric: tabular-nums;
-    font-weight: 850;
+    font-weight: 900;
     letter-spacing: -0.06em;
     color: var(--color-text-main);
+    text-shadow: 0 10px 30px oklch(0% 0 0 / 40%);
 }
 
 .status-text {
@@ -50,7 +56,7 @@ body {
     color: var(--color-text-dim);
 }
 
-/* --- Animation Utilities 2025 --- */
+/* --- Animation Utilities 2026 --- */
 .fade-in {
     animation: springFadeIn 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     opacity: 0;
@@ -61,58 +67,90 @@ body {
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* --- Aurora Background 2025 (OKLCH) --- */
-.aurora-blob {
+/* --- Mesh Gradient Background 2026 (Premium WebGL / CSS Hybrid) --- */
+#mesh-background {
+    background-color: var(--color-bg);
+}
+
+.mesh-blob {
     position: absolute;
+    filter: blur(120px) saturate(150%);
     border-radius: 50%;
-    filter: blur(100px);
-    opacity: 0.3;
-    animation: auroraMove 25s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+    animation: meshFlow 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.4;
+    mix-blend-mode: screen;
 }
 
-.blob-1 {
-    width: 350px; height: 350px;
+.blob-primary {
     background: var(--color-primary);
-    top: -15%; left: -10%;
-    animation-duration: 30s;
-}
-
-.blob-2 {
-    width: 450px; height: 450px;
-    background: var(--color-secondary);
-    bottom: 10%; right: -15%;
-    animation-duration: 40s;
-    animation-delay: -8s;
-}
-
-.blob-3 {
-    width: 250px; height: 250px;
-    background: var(--color-warning);
-    top: 45%; left: 35%;
+    width: 60vw; height: 60vw;
+    top: -10%; left: -20%;
     animation-duration: 25s;
-    animation-delay: -12s;
 }
 
-@keyframes auroraMove {
-    0% { transform: translate(0, 0) scale(1); }
-    100% { transform: translate(30px, 50px) scale(1.1); }
+.blob-secondary {
+    background: var(--color-secondary);
+    width: 70vw; height: 70vw;
+    bottom: -10%; right: -20%;
+    animation-duration: 35s;
+    animation-delay: -5s;
 }
 
-/* --- Glassmorphism Cards --- */
+.blob-accent {
+    background: var(--color-warning);
+    width: 40vw; height: 40vw;
+    top: 40%; left: 30%;
+    animation-duration: 22s;
+    animation-delay: -10s;
+}
+
+.mesh-overlay {
+    position: absolute;
+    inset: 0;
+    background: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.05"/%3E%3C/svg%3E');
+    mix-blend-mode: overlay;
+    pointer-events: none;
+}
+
+@keyframes meshFlow {
+    0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    33% { transform: translate(5vw, 10vh) scale(1.1) rotate(45deg); }
+    66% { transform: translate(-10vw, -5vh) scale(0.95) rotate(-30deg); }
+    100% { transform: translate(0vw, -10vh) scale(1.05) rotate(15deg); }
+}
+
+/* --- Premium Glassmorphism Cards 2026 --- */
 .glass-panel {
-    background: var(--color-surface-glass);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid oklch(100% 0 0 / 12%);
-    box-shadow: var(--shadow-main);
+    background: linear-gradient(135deg, oklch(25% 0.03 258 / 60%), oklch(18% 0.03 258 / 40%));
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid oklch(100% 0 0 / 15%);
+    border-top: 1px solid oklch(100% 0 0 / 30%);
+    border-left: 1px solid oklch(100% 0 0 / 25%);
+    box-shadow: 
+        0 20px 40px -10px oklch(0% 0 0 / 50%),
+        inset 0 1px 0 oklch(100% 0 0 / 10%);
     border-radius: var(--radius-xl);
     container-type: inline-size;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .glass-panel:hover {
-  transform: translateY(-4px);
-  background: oklch(24% 0.03 258 / 50%);
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 
+        0 30px 50px -15px oklch(0% 0 0 / 60%),
+        inset 0 1px 0 oklch(100% 0 0 / 20%);
+    background: linear-gradient(135deg, oklch(28% 0.03 258 / 65%), oklch(20% 0.03 258 / 45%));
+}
+
+.glass-button {
+    background: linear-gradient(135deg, oklch(25% 0.03 258 / 60%), oklch(18% 0.03 258 / 40%));
+    backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid oklch(100% 0 0 / 15%);
+    box-shadow: 0 4px 12px oklch(0% 0 0 / 30%);
+}
+.glass-button:hover {
+    background: linear-gradient(135deg, oklch(30% 0.03 258 / 70%), oklch(22% 0.03 258 / 50%));
 }
 
 #balanceCard {

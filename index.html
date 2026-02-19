@@ -21,14 +21,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 
     <!-- PWA Settings -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#020617">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
@@ -38,6 +38,7 @@
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
                     },
                     colors: {
                         slate: {
@@ -54,14 +55,14 @@
         }
     </script>
 </head>
-<!-- Changed background to a gradient -->
-<body class="bg-slate-950 text-white flex items-center justify-center min-h-screen p-4 selection:bg-emerald-500 selection:text-white overflow-x-hidden relative">
+<body class="bg-slate-950 text-white flex items-center justify-center min-h-screen p-4 selection:bg-emerald-500 selection:text-white overflow-x-hidden relative font-sans">
 
-    <!-- Aurora Background -->
-    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div class="aurora-blob blob-1"></div>
-        <div class="aurora-blob blob-2"></div>
-        <div class="aurora-blob blob-3"></div>
+    <!-- WebGL / Mesh Background Container -->
+    <div id="mesh-background" class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="mesh-blob blob-primary"></div>
+        <div class="mesh-blob blob-secondary"></div>
+        <div class="mesh-blob blob-accent"></div>
+        <div class="mesh-overlay"></div>
     </div>
 
     <!-- Loader -->
@@ -79,10 +80,10 @@
             <div class="mt-1 flex items-center justify-between">
                 <div>
                     <div class="flex items-center gap-2">
-                        <h1 class="text-xl font-black tracking-tight text-white drop-shadow-sm text-left">
+                        <h1 class="text-xl font-display font-black tracking-tight text-white drop-shadow-sm text-left">
                             Кидай Курити
                         </h1>
-                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.4.0</span>
+                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v3.0.0</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <div id="syncIndicator" class="w-2 h-2 rounded-full bg-slate-700 animate-pulse"></div>
@@ -90,7 +91,7 @@
                         <span id="accountBadge" class="text-[8px] px-1.5 py-0.5 rounded font-bold hidden"></span>
                     </div>
                 </div>
-                 <button id="openSettingsButton" class="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors backdrop-blur-md">
+                 <button id="openSettingsButton" class="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors backdrop-blur-md hover:scale-105 active:scale-95 duration-200">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -247,11 +248,11 @@
         </div>
 
         <!-- Settings View (Modal) -->
-        <div id="settings-view" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl p-6 overflow-y-auto fade-in">
-             <div class="max-w-lg mx-auto mt-10">
+        <dialog id="settings-view" class="bg-slate-950/90 backdrop-blur-xl p-6 overflow-y-auto fade-in shadow-2xl rounded-3xl z-50 transition-all text-white border border-slate-700/50 w-full max-w-lg m-auto max-h-[90vh]">
+             <div class="mx-auto mt-4">
                 <div class="flex items-center justify-between mb-10">
-                     <h2 class="text-2xl font-black text-white">Налаштування</h2>
-                     <button id="closeSettingsButton" class="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white transition">
+                     <h2 class="text-2xl font-display font-black text-white">Налаштування</h2>
+                     <button id="closeSettingsButton" class="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white transition hover:scale-105 active:scale-95">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -261,18 +262,18 @@
                 <div class="space-y-4">
                     <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
                         <label for="packPrice" class="block text-sm font-medium text-slate-300">Ціна пачки ($)</label>
-                        <input type="number" id="packPrice" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
+                        <input type="number" id="packPrice" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono transition-all">
                     </div>
                     <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
                         <label for="packSize" class="block text-sm font-medium text-slate-300">Кількість в пачці</label>
-                        <input type="number" id="packSize" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
+                        <input type="number" id="packSize" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono transition-all">
                     </div>
                     
                     <div class="glass-panel p-5 rounded-2xl">
                          <label for="oldHabit" class="block text-sm font-medium text-slate-300 mb-2">Звичка (цигарки/день)</label>
                          <div class="flex justify-between items-center">
                              <span id="oldHabitMoney" class="text-emerald-400 text-xs font-mono font-bold">$0.00/день</span>
-                             <input type="number" id="oldHabit" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 text-right font-mono">
+                             <input type="number" id="oldHabit" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 text-right font-mono transition-all">
                          </div>
                     </div>
 
@@ -280,13 +281,13 @@
                         <label for="desiredDailySticks" class="block text-sm font-medium text-slate-300 mb-2">Ціль (цигарки/день)</label>
                         <div class="flex justify-between items-center">
                             <span id="desiredDailySticksMoney" class="text-emerald-400 text-xs font-mono font-bold">$0.00/день</span>
-                            <input type="number" id="desiredDailySticks" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 text-right font-mono">
+                            <input type="number" id="desiredDailySticks" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 text-right font-mono transition-all">
                         </div>
                    </div>
 
                     <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
                         <label for="smokeIntervalMinutes" class="block text-sm font-medium text-slate-300">Інтервал (хв)</label>
-                        <input type="number" id="smokeIntervalMinutes" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono">
+                        <input type="number" id="smokeIntervalMinutes" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono transition-all">
                     </div>
 
                     <!-- Sync Info -->
@@ -297,38 +298,37 @@
                 </div>
                 
                 <div class="mt-8 flex flex-col gap-4">
-                    <button id="saveSettingsButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-4 rounded-2xl transition shadow-lg shadow-emerald-500/20">Зберегти налаштування</button>
+                    <button id="saveSettingsButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-4 rounded-2xl transition shadow-lg shadow-emerald-500/20 active:scale-95">Зберегти налаштування</button>
                     
                     <div class="pt-6 border-t border-slate-800">
                         <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 text-center">Обслуговування та Скидання</h3>
                         
                         <div class="grid grid-cols-2 gap-3">
-                            <button id="forceSyncButton" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 group">
+                            <button id="forceSyncButton" class="glass-button bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 group active:scale-95">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                                 Синхро
                             </button>
-                            <button id="hardRefreshButton" class="bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-300 border border-indigo-500/20 text-xs font-bold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                            <button id="hardRefreshButton" class="glass-button bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-300 border border-indigo-500/20 text-xs font-bold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 active:scale-95">
                                 <span class="animate-pulse">💎</span> ПОВНЕ ОНОВЛЕННЯ
                             </button>
                         </div>
-                        <button id="resetDataButton" onclick="alert('RESET START'); window.location.href='?reset=true'" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
+                        <button id="resetDataButton" onclick="alert('RESET START'); window.location.href='?reset=true'" class="w-full mt-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
                                  СНУЛИТИ ДАНІ
                              </button>
                         
-                        <button id="deepResetButton" onclick="triggerDeepReset()" class="w-full mt-4 bg-slate-900/50 hover:bg-slate-900 text-slate-500 hover:text-red-400 text-[10px] font-black py-3 px-4 rounded-xl border border-slate-800 hover:border-red-500/30 transition-all uppercase tracking-wider">
+                        <button id="deepResetButton" onclick="triggerDeepReset()" class="w-full mt-4 bg-slate-900/50 hover:bg-slate-900 text-slate-500 hover:text-red-400 text-[10px] font-black py-3 px-4 rounded-xl border border-slate-800 hover:border-red-500/30 transition-all uppercase tracking-wider active:scale-95">
                             Повне скидання кешу та вихід
                         </button>
                     </div>
 
-
-                    <button id="signOutButton" class="w-full text-slate-500 text-sm font-medium py-3 hover:text-slate-300 hidden border-t border-slate-800 pt-6">
+                    <button id="signOutButton" class="w-full text-slate-500 text-sm font-medium py-3 hover:text-slate-300 hidden border-t border-slate-800 pt-6 active:scale-95">
                         Вийти з акаунту
                     </button>
                 </div> 
             </div> 
-        </div> 
+        </dialog> 
     </div> 
 
     <script>
@@ -355,18 +355,15 @@
         };
     </script>
 
-    <!-- Confirm Modal (Moved to root for absolute priority) -->
-    <div id="confirmModal" class="hidden fixed inset-0 z-[1000] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-950/95 backdrop-blur-md"></div>
-        <div class="bg-slate-900 border border-slate-700/50 rounded-3xl p-8 max-w-sm w-full text-center relative z-10 shadow-2xl">
-            <h3 class="text-xl font-bold text-white mb-4">Ви впевнені?</h3>
-            <p id="modalText" class="text-slate-400 mb-8 leading-relaxed">Цю дію неможливо скасувати.</p>
-            <div class="flex gap-4">
-                <button id="confirmNo" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl transition">Ні</button>
-                <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/20">Так, видалити</button>
-            </div>
+    <!-- Confirm Modal -->
+    <dialog id="confirmModal" class="bg-slate-900 border border-slate-700/50 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl m-auto text-white backdrop:bg-slate-950/80 backdrop:backdrop-blur-md transition-all">
+        <h3 class="text-xl font-display font-bold text-white mb-4">Ви впевнені?</h3>
+        <p id="modalText" class="text-slate-400 mb-8 leading-relaxed">Цю дію неможливо скасувати.</p>
+        <div class="flex gap-4">
+            <button id="confirmNo" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl transition hover:scale-105 active:scale-95">Ні</button>
+            <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/20 hover:scale-105 active:scale-95">Так</button>
         </div>
-    </div>
+    </dialog>
 
     <script type="module" src="js/app.js"></script>
 

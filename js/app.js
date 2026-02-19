@@ -139,11 +139,15 @@ let confirmModal, modalText, confirmYes, confirmNo;
 let confirmCallback = null;
 
 function showConfirm(text, onConfirm) {
-    console.log("[showConfirm] Opening modal with text:", text);
+    console.log("[showConfirm] Opening dialog with text:", text);
     modalText.textContent = text;
     confirmCallback = onConfirm;
-    confirmModal.classList.remove('hidden');
-    confirmModal.style.display = 'flex'; // Force display flex just in case
+    
+    if (typeof confirmModal.showModal === 'function') {
+        confirmModal.showModal();
+    } else {
+        confirmModal.setAttribute('open', '');
+    }
 }
 
 // Global listeners for confirm buttons once in DOMContentLoaded
@@ -151,14 +155,18 @@ function setupConfirmModalListeners() {
     confirmYes.onclick = () => {
         console.log("[showConfirm] Confirmed");
         if (confirmCallback) confirmCallback();
-        confirmModal.classList.add('hidden');
-        confirmModal.style.display = '';
+        
+        if (typeof confirmModal.close === 'function') confirmModal.close();
+        else confirmModal.removeAttribute('open');
+        
         confirmCallback = null;
     };
     confirmNo.onclick = () => {
         console.log("[showConfirm] Cancelled");
-        confirmModal.classList.add('hidden');
-        confirmModal.style.display = '';
+        
+        if (typeof confirmModal.close === 'function') confirmModal.close();
+        else confirmModal.removeAttribute('open');
+        
         confirmCallback = null;
     };
 }
@@ -764,6 +772,8 @@ function handleChartTabClick(e) {
     const btn = e.target.closest('button');
     if (!btn) return;
     
+    if (navigator.vibrate) navigator.vibrate(20);
+
     // Update State
     currentChartPeriod = btn.dataset.period;
 
@@ -778,13 +788,14 @@ function handleChartTabClick(e) {
     });
 
     updateUI();
-    updateUI();
 }
 
 function handleChartModeClick(e) {
     const btn = e.target.closest('button');
     if (!btn) return;
     
+    if (navigator.vibrate) navigator.vibrate(20);
+
     currentChartMode = btn.dataset.mode;
 
     statsModeBtns.forEach(b => {
@@ -824,6 +835,11 @@ function triggerLeafFall(count = 5) {
 
 function handleSmoke(type = 'regular') {
     console.log(`[handleSmoke] ${type} smoke button clicked!`);
+    
+    // Haptic Feedback 2026
+    if (navigator.vibrate) {
+        navigator.vibrate(type === 'emergency' ? [50, 50, 50] : 50);
+    }
     
     // Tree Feedback Logic 2025
     if (treeContainerEl && toxicCloudEl) {
@@ -1078,11 +1094,19 @@ async function handleDeepReset() {
 }
 
 function toggleSettingsView() {
+    if (navigator.vibrate) navigator.vibrate(30);
+
     const action = () => {
-        mainView.classList.toggle('hidden');
-        settingsView.classList.toggle('hidden');
-        if (!settingsView.classList.contains('hidden')) {
+        // Toggle <dialog> state
+        if (settingsView.open) {
+            settingsView.close();
+            // Enable scrolling on body again if needed
+            document.body.style.overflow = '';
+        } else {
+            settingsView.showModal();
             updateSettingsInputs();
+            // Prevent body scroll behind dialog
+            document.body.style.overflow = 'hidden';
         }
     };
 
