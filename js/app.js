@@ -96,6 +96,7 @@ let eventListenersAttached = false;
 let isInitialAuthCheckComplete = false;
 let lastFirebaseSyncTime = 0;
 const FIREBASE_SYNC_INTERVAL = 10000; // 10 секунд — швидша крос-девайс синхронізація
+let isLocalOnlyMode = false;
 let userId = null;
 let dataRef = null;
 let unsubscribeSnapshot = null; // Real-time listener cleanup
@@ -130,6 +131,46 @@ function updateSyncStatus(status) {
     } else if (status === 'error') {
         syncIndicator.classList.add('bg-red-500');
     }
+}
+
+function applyLocalOnlyUiState() {
+    if (userStatusDisplay) {
+        userStatusDisplay.textContent = "Локальний режим (без авторизації)";
+    }
+    if (accountBadge) {
+        accountBadge.textContent = "LOCAL-ONLY";
+        accountBadge.classList.remove('hidden');
+        accountBadge.className = "text-[8px] px-1.5 py-0.5 rounded font-bold inline-block bg-amber-500/20 text-amber-500";
+    }
+    if (signInGoogleButton) {
+        signInGoogleButton.classList.add('hidden');
+        signInGoogleButton.disabled = true;
+    }
+    if (signOutButton) {
+        signOutButton.classList.add('hidden');
+    }
+    if (forceSyncButton) {
+        forceSyncButton.disabled = true;
+        forceSyncButton.classList.add('opacity-60', 'cursor-not-allowed');
+        forceSyncButton.title = "Firebase недоступний: локальний режим";
+    }
+    updateSyncStatus('error');
+}
+
+async function switchToLocalOnlyMode(reason, error = null) {
+    if (isLocalOnlyMode) return;
+    isLocalOnlyMode = true;
+    console.warn(`[LocalOnly] ${reason}`, error || '');
+
+    if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+    }
+
+    userId = null;
+    dataRef = null;
+    applyLocalOnlyUiState();
+    await loadData();
 }
 let insightsSection, peakHourValueEl, activityHeatmapEl, heatmapLabelsEl;
 let currentChartPeriod = 'day';
@@ -326,6 +367,9 @@ async function loadData() {
         if (!eventListenersAttached) attachEventListeners();
         loader.classList.add('hidden');
         appContainer.classList.remove('hidden');
+    }, async (error) => {
+        console.error("[loadData] Firestore listener error:", error);
+        await switchToLocalOnlyMode("Firestore unavailable", error);
     });
 }
 
@@ -1119,6 +1163,12 @@ function toggleSettingsView() {
 
 // Auth Handlers
 async function handleGoogleSignIn() {
+    if (isLocalOnlyMode || !auth) {
+        if (userStatusDisplay) {
+            userStatusDisplay.textContent = "Локальний режим: вхід через Google вимкнено";
+        }
+        return;
+    }
     const provider = new GoogleAuthProvider();
     signInGoogleButton.disabled = true;
     signInGoogleButton.textContent = "Вхід...";
@@ -1151,6 +1201,7 @@ async function handleGoogleSignIn() {
 }
 
 async function handleSignOut() {
+    if (!auth) return;
     try {
         await signOut(auth);
     } catch (error) {
@@ -1289,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         auth = getAuth(app);
     } catch (error) {
         console.error("Firebase init error:", error);
-        if (loader) loader.textContent = "Error initializing Firebase.";
+        await switchToLocalOnlyMode("Firebase init failed", error);
         return;
     }
 
@@ -1299,6 +1350,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Auth State Listener
     onAuthStateChanged(auth, async (user) => {
+        if (isLocalOnlyMode) {
+            await loadData();
+            return;
+        }
         if (user) {
             userId = user.uid;
             if (user.isAnonymous) {
@@ -1354,6 +1409,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     await signInAnonymously(auth);
                 } catch (e) {
                     console.error("Anon sign-in failed", e);
+                    await switchToLocalOnlyMode("Anonymous auth failed", e);
                 }
             } else {
                 // User signed out, keep local data for now instead of resetting
@@ -1399,5 +1455,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setInterval(updateUI, 1000);
 });
-
 
