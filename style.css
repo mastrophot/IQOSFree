@@ -270,6 +270,7 @@ body {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    mix-blend-mode: screen;
     /* Removed transition to prevent background "pop-in" during state changes */
     
     /* Base enhancements - filters now only for health effects */
