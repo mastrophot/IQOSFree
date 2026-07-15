@@ -393,3 +393,13 @@ body {
 dialog:not([open]) {
     display: none !important;
 }
+
+/* --- Urge Surfing (Breathing) Animations 2026 --- */
+.breathe-cycle {
+    animation: breatheAnim 10s ease-in-out infinite;
+}
+
+@keyframes breatheAnim {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.6); }
+}

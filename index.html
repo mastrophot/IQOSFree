@@ -188,6 +188,14 @@
                  </button>
              </div>
 
+             <!-- SOS Button (Urge Surfing) -->
+             <button id="sosButton" class="w-full mt-2 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 border border-cyan-500/30 text-cyan-400 font-bold py-3 px-4 rounded-2xl transition-all shadow-lg active:scale-95 fade-in delay-300 flex items-center justify-center gap-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                 </svg>
+                 ХОЧУ КУРИТИ (SOS)
+             </button>
+
              <!-- Statistics Section -->
              <div id="statisticsSection" class="glass-panel p-5 rounded-3xl delay-400 fade-in flex flex-col gap-4">
                  <div class="flex items-center justify-between">
@@ -314,11 +322,11 @@
                                 <span class="animate-pulse">💎</span> ПОВНЕ ОНОВЛЕННЯ
                             </button>
                         </div>
-                        <button id="resetDataButton" onclick="alert('RESET START'); window.location.href='?reset=true'" class="w-full mt-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
+                        <button id="resetDataButton" class="w-full mt-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
                                  СНУЛИТИ ДАНІ
                              </button>
                         
-                        <button id="deepResetButton" onclick="triggerDeepReset()" class="w-full mt-4 bg-slate-900/50 hover:bg-slate-900 text-slate-500 hover:text-red-400 text-[10px] font-black py-3 px-4 rounded-xl border border-slate-800 hover:border-red-500/30 transition-all uppercase tracking-wider active:scale-95">
+                        <button id="deepResetButton" class="w-full mt-4 bg-slate-900/50 hover:bg-slate-900 text-slate-500 hover:text-red-400 text-[10px] font-black py-3 px-4 rounded-xl border border-slate-800 hover:border-red-500/30 transition-all uppercase tracking-wider active:scale-95">
                             Повне скидання кешу та вихід
                         </button>
                     </div>
@@ -363,6 +371,25 @@
             <button id="confirmNo" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl transition hover:scale-105 active:scale-95">Ні</button>
             <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/20 hover:scale-105 active:scale-95">Так</button>
         </div>
+    </dialog>
+
+    <!-- Urge Surfing Modal (Breathing) -->
+    <dialog id="breatheModal" class="bg-slate-950 border border-cyan-500/30 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl m-auto text-white backdrop:bg-slate-950/95 backdrop:backdrop-blur-xl transition-all">
+        <h3 class="text-2xl font-display font-black text-cyan-400 mb-2">Перетерпи</h3>
+        <p class="text-slate-400 text-sm mb-10">Дихай синхронно з колом.</p>
+        
+        <div class="relative w-48 h-48 mx-auto flex items-center justify-center mb-10">
+            <div id="breatheCircle" class="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 border-2 border-cyan-400/50 flex items-center justify-center">
+                <span id="breatheText" class="text-2xl font-black text-cyan-300 uppercase tracking-widest drop-shadow-md">Вдих</span>
+            </div>
+            <div class="absolute inset-0 rounded-full border border-cyan-500/30 scale-[1.5]"></div>
+        </div>
+
+        <div class="text-3xl font-mono font-bold text-white mb-8" id="breatheTimer">60</div>
+
+        <button id="closeBreatheBtn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 px-4 rounded-xl transition active:scale-95">
+            Я впорався
+        </button>
     </dialog>
 
     <script type="module" src="js/app.js"></script>

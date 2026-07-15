@@ -109,6 +109,7 @@ let smokedTodayValueEl, smokedTodayPlannedEl, spentTodayValueEl, spentTodayPlann
 let smokeFreeStreakEl, longestSmokeFreeStreakEl;
 let balanceCardEl, financialBalanceLabelEl, financialBalanceValueEl, balanceIconEl;
 let signInGoogleButton, signOutButton, userStatusDisplay;
+let sosButton, breatheModal, breatheCircle, breatheText, breatheTimer, closeBreatheBtn;
 let packPriceInput, packSizeInput, oldHabitInput, smokeIntervalMinutesInput, oldHabitMoneyEl, desiredDailySticksInput, desiredDailySticksMoneyEl;
 let dailySmokingChartSection, dailySmokeChartCanvas;
 let statisticsSection, smokeChartCanvas;
@@ -423,16 +424,7 @@ function updateUI() {
     renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
 
 
-    // Show sync status visually (optional polish)
-    if (userStatusDisplay) {
-        const syncDot = document.getElementById('syncIndicator') || document.createElement('span');
-        syncDot.id = 'syncIndicator';
-        syncDot.className = 'inline-block w-2 h-2 rounded-full bg-green-500 ml-2 animate-pulse';
-        syncDot.title = 'Синхронізація активна';
-        if (!userStatusDisplay.contains(syncDot)) {
-            userStatusDisplay.appendChild(syncDot);
-        }
-    }
+    // Show sync status visually (optional polish) - removed duplicated syncDot logic as it's handled by updateSyncStatus
 }
 
 function updateStatistics(now) {
@@ -958,6 +950,36 @@ function handleUndoSmoke() {
     console.log("[Undo] Smoke action undone.");
 }
 
+let breatheInterval = null;
+function startBreathing() {
+    let secondsLeft = 60;
+    breatheTimer.textContent = secondsLeft;
+    breatheCircle.classList.add('breathe-cycle');
+    breatheModal.showModal();
+    
+    const updateBreatheText = () => {
+        const phase = secondsLeft % 10;
+        breatheText.textContent = phase >= 5 ? 'Видих' : 'Вдих';
+    };
+    updateBreatheText();
+    
+    breatheInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft <= 0) {
+            stopBreathing();
+        } else {
+            breatheTimer.textContent = secondsLeft;
+            updateBreatheText();
+        }
+    }, 1000);
+}
+
+function stopBreathing() {
+    clearInterval(breatheInterval);
+    breatheCircle.classList.remove('breathe-cycle');
+    breatheModal.close();
+}
+
 function updateSettingsInputs() {
     packPriceInput.value = appData.settings.packPrice;
     packSizeInput.value = appData.settings.packSize;
@@ -1297,6 +1319,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     undoNotificationEl = document.getElementById('undoNotification');
     undoActionBtn = document.getElementById('undoActionBtn');
     undoTimerTextEl = document.getElementById('undoTimerText');
+    
+    sosButton = document.getElementById('sosButton');
+    breatheModal = document.getElementById('breatheModal');
+    breatheCircle = document.getElementById('breatheCircle');
+    breatheText = document.getElementById('breatheText');
+    breatheTimer = document.getElementById('breatheTimer');
+    closeBreatheBtn = document.getElementById('closeBreatheBtn');
 
     signInGoogleButton = document.getElementById('signInGoogleButton'); 
     signOutButton = document.getElementById('signOutButton'); 
@@ -1332,6 +1361,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setupConfirmModalListeners();
     attachEventListeners(); // Force attachment here
+    
+    if (sosButton) sosButton.addEventListener('click', startBreathing);
+    if (closeBreatheBtn) closeBreatheBtn.addEventListener('click', stopBreathing);
 
     // Init Firebase
     try {
@@ -1420,15 +1452,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         isInitialAuthCheckComplete = true; 
     });
-
-    // PWA Shortcut handling logic.
-    const urlParams = new URLSearchParams(window.location.search);
-    const action = urlParams.get('action');
-    if (action === 'smoke') {
-        setTimeout(() => handleSmoke('regular'), 1500); // Small delay to let app load logic.
-    } else if (action === 'emergency') {
-        setTimeout(() => handleSmoke('emergency'), 1500);
-    }
 
     // Зберігаємо прогрес при закритті вкладки/браузера
     window.addEventListener('beforeunload', () => {
