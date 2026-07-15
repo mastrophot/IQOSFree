@@ -421,10 +421,31 @@ function updateUI() {
     updateStatistics(now);
     updateAvatar();
     updateGlobalStats();
+    updateDetoxTracker(now);
     renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
 
 
     // Show sync status visually (optional polish) - removed duplicated syncDot logic as it's handled by updateSyncStatus
+}
+
+function updateDetoxTracker(now) {
+    const lastSmoke = appData.lastSmokeTime;
+    const msSinceLast = lastSmoke ? now - lastSmoke : (48 * 60 * 60 * 1000); // 100% detox if no history
+    
+    const detoxStages = [
+        { id: '20m', ms: 20 * 60 * 1000 },
+        { id: '8h', ms: 8 * 60 * 60 * 1000 },
+        { id: '24h', ms: 24 * 60 * 60 * 1000 },
+        { id: '48h', ms: 48 * 60 * 60 * 1000 }
+    ];
+    
+    detoxStages.forEach(stage => {
+        const percent = Math.min(100, Math.floor((msSinceLast / stage.ms) * 100));
+        const valEl = document.getElementById(`detoxVal-${stage.id}`);
+        const barEl = document.getElementById(`detoxBar-${stage.id}`);
+        if (valEl) valEl.textContent = `${percent}%`;
+        if (barEl) barEl.style.width = `${percent}%`;
+    });
 }
 
 function updateStatistics(now) {
@@ -718,45 +739,6 @@ function updateAvatar() {
     }
 }
 
-const processedTrees = {};
-
-/**
- * Procedurally removes black background from images using Canvas.
- * Optimized for mobile PWA performance.
- */
-async function getTransparentTree(src) {
-    if (processedTrees[src]) return processedTrees[src];
-    
-    return new Promise((resolve) => {
-        const tempImg = new Image();
-        tempImg.src = src;
-        tempImg.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = tempImg.width;
-            canvas.height = tempImg.height;
-            ctx.drawImage(tempImg, 0, 0);
-
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i], g = data[i+1], b = data[i+2];
-                const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-                if (luminance < 40) {
-                    data[i + 3] = Math.max(0, (luminance - 15) * 5);
-                    if (luminance < 15) data[i + 3] = 0;
-                }
-            }
-
-            ctx.putImageData(imageData, 0, 0);
-            const dataUrl = canvas.toDataURL("image/png");
-            processedTrees[src] = dataUrl;
-            resolve(dataUrl);
-        };
-    });
-}
-
 async function renderLifeTree(stage, health) {
     const container = treeContainerEl;
     let img = container.querySelector('#treeImage');
@@ -770,14 +752,13 @@ async function renderLifeTree(stage, health) {
     }
 
     let assetIndex = stage;
-    if (assetIndex > 4) assetIndex = 4;
-    // assetIndex mapping: 1 (parostok), 2 (sadzanets), 3 (serednie), 4 (velike)
+    if (assetIndex > 5) assetIndex = 5;
     
     const rawSrc = `assets/tree_${assetIndex}.png`;
-    const processedSrc = await getTransparentTree(rawSrc);
     
-    if (img.src !== processedSrc) {
-        img.src = processedSrc;
+    // Direct load for OLED-seamless blending
+    if (img.getAttribute('src') !== rawSrc) {
+        img.setAttribute('src', rawSrc);
     }
 
     const healthLevel = Math.max(1, Math.min(10, Math.floor(health / 10) + (health % 10 > 5 ? 1 : 0))); // Floor + bonus for >5%
@@ -1364,6 +1345,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (sosButton) sosButton.addEventListener('click', startBreathing);
     if (closeBreatheBtn) closeBreatheBtn.addEventListener('click', stopBreathing);
+
+    // PWA Custom Install Promotion 2026
+    let deferredPrompt = null;
+    const pwaBanner = document.getElementById('pwaInstallBanner');
+    const pwaBtn = document.getElementById('pwaInstallBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        if (pwaBanner) {
+            pwaBanner.classList.remove('translate-y-32', 'opacity-0');
+        }
+    });
+
+    if (pwaBtn) {
+        pwaBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User choice outcome: ${outcome}`);
+            deferredPrompt = null;
+            if (pwaBanner) {
+                pwaBanner.classList.add('translate-y-32', 'opacity-0');
+            }
+        });
+    }
 
     // Init Firebase
     try {

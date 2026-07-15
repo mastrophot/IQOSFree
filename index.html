@@ -55,7 +55,7 @@
         }
     </script>
 </head>
-<body class="bg-slate-950 text-white flex items-center justify-center min-h-screen p-4 selection:bg-emerald-500 selection:text-white overflow-x-hidden relative font-sans">
+<body class="bg-black text-white flex items-center justify-center min-h-screen p-4 selection:bg-cyan-500 selection:text-white overflow-x-hidden relative font-sans">
 
     <!-- WebGL / Mesh Background Container -->
     <div id="mesh-background" class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -66,8 +66,8 @@
     </div>
 
     <!-- Loader -->
-    <div id="loader" class="relative z-50 text-center flex flex-col items-center justify-center h-screen w-screen absolute top-0 left-0 bg-slate-950">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mb-4 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+    <div id="loader" class="relative z-50 text-center flex flex-col items-center justify-center h-screen w-screen absolute top-0 left-0 bg-black">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mb-4 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
         <p class="text-xl text-slate-400 font-light tracking-wide animate-pulse">Завантаження...</p>
     </div>
 
@@ -83,7 +83,7 @@
                         <h1 class="text-xl font-display font-black tracking-tight text-white drop-shadow-sm text-left">
                             Кидай Курити
                         </h1>
-                        <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v3.0.0</span>
+                        <span class="text-[8px] bg-slate-900 text-cyan-500 px-1.5 py-0.5 rounded-md font-mono border border-cyan-500/20">v3.2.0</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <div id="syncIndicator" class="w-2 h-2 rounded-full bg-slate-700 animate-pulse"></div>
@@ -177,7 +177,7 @@
 
             <!-- Streaks & Emergency Grid -->
              <div class="grid grid-cols-2 gap-2 delay-300 fade-in">
-                 <div class="glass-panel p-3 rounded-2xl text-left">
+                 <div class="bg-slate-900/50 border border-slate-800 p-3 rounded-2xl text-left">
                      <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Період без куріння</div>
                      <p class="text-lg font-bold text-cyan-400" id="smokeFreeStreak">0</p>
                      <p class="text-[9px] text-slate-500 mt-0.5">Рекорд: <span id="longestSmokeFreeStreak" class="text-slate-300">0</span></p>
@@ -189,15 +189,72 @@
              </div>
 
              <!-- SOS Button (Urge Surfing) -->
-             <button id="sosButton" class="w-full mt-2 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 border border-cyan-500/30 text-cyan-400 font-bold py-3 px-4 rounded-2xl transition-all shadow-lg active:scale-95 fade-in delay-300 flex items-center justify-center gap-2">
-                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+             <button id="sosButton" class="group relative w-full mt-2 bg-gradient-to-r from-blue-600/30 to-cyan-600/30 hover:from-blue-600/40 hover:to-cyan-600/40 border border-cyan-500/30 text-cyan-400 font-black py-4 px-6 rounded-2xl transition-all shadow-[0_10px_30px_rgba(6,182,212,0.15)] active:scale-[0.98] fade-in delay-300 flex items-center justify-center gap-2 overflow-hidden">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                  </svg>
                  ХОЧУ КУРИТИ (SOS)
+                 <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
              </button>
 
+             <!-- Nicotine Detox Tracker Section -->
+             <div id="detoxSection" class="bg-slate-900/50 border border-slate-800 p-5 rounded-3xl delay-350 fade-in flex flex-col gap-4 text-left">
+                 <h2 class="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-2">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                     </svg>
+                     Детоксикація Організму
+                 </h2>
+                 
+                 <div class="space-y-3.5">
+                     <!-- 20 Mins -->
+                     <div>
+                         <div class="flex justify-between text-[10px] mb-1">
+                             <span class="text-slate-300 font-medium">20 хв: Нормалізація тиску & пульсу</span>
+                             <span id="detoxVal-20m" class="text-cyan-400 font-mono font-bold">0%</span>
+                         </div>
+                         <div class="w-full h-1.5 bg-black border border-white/5 rounded-full overflow-hidden">
+                             <div id="detoxBar-20m" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000" style="width: 0%"></div>
+                         </div>
+                     </div>
+                     
+                     <!-- 8 Hours -->
+                     <div>
+                         <div class="flex justify-between text-[10px] mb-1">
+                             <span class="text-slate-300 font-medium">8 год: Очищення від чадного газу (-50%)</span>
+                             <span id="detoxVal-8h" class="text-cyan-400 font-mono font-bold">0%</span>
+                         </div>
+                         <div class="w-full h-1.5 bg-black border border-white/5 rounded-full overflow-hidden">
+                             <div id="detoxBar-8h" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000" style="width: 0%"></div>
+                         </div>
+                     </div>
+                     
+                     <!-- 24 Hours -->
+                     <div>
+                         <div class="flex justify-between text-[10px] mb-1">
+                             <span class="text-slate-300 font-medium">24 год: Виведення нікотину (100%)</span>
+                             <span id="detoxVal-24h" class="text-cyan-400 font-mono font-bold">0%</span>
+                         </div>
+                         <div class="w-full h-1.5 bg-black border border-white/5 rounded-full overflow-hidden">
+                             <div id="detoxBar-24h" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000" style="width: 0%"></div>
+                         </div>
+                     </div>
+                     
+                     <!-- 48 Hours -->
+                     <div>
+                         <div class="flex justify-between text-[10px] mb-1">
+                             <span class="text-slate-300 font-medium">48 год: Відновлення смаку & нюху</span>
+                             <span id="detoxVal-48h" class="text-cyan-400 font-mono font-bold">0%</span>
+                         </div>
+                         <div class="w-full h-1.5 bg-black border border-white/5 rounded-full overflow-hidden">
+                             <div id="detoxBar-48h" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000" style="width: 0%"></div>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+
              <!-- Statistics Section -->
-             <div id="statisticsSection" class="glass-panel p-5 rounded-3xl delay-400 fade-in flex flex-col gap-4">
+             <div id="statisticsSection" class="bg-slate-900/50 border border-slate-800 p-5 rounded-3xl delay-400 fade-in flex flex-col gap-4">
                  <div class="flex items-center justify-between">
                      <h2 class="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-2">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" /></svg>
@@ -374,22 +431,24 @@
     </dialog>
 
     <!-- Urge Surfing Modal (Breathing) -->
-    <dialog id="breatheModal" class="bg-slate-950 border border-cyan-500/30 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl m-auto text-white backdrop:bg-slate-950/95 backdrop:backdrop-blur-xl transition-all">
-        <h3 class="text-2xl font-display font-black text-cyan-400 mb-2">Перетерпи</h3>
-        <p class="text-slate-400 text-sm mb-10">Дихай синхронно з колом.</p>
-        
-        <div class="relative w-48 h-48 mx-auto flex items-center justify-center mb-10">
-            <div id="breatheCircle" class="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 border-2 border-cyan-400/50 flex items-center justify-center">
-                <span id="breatheText" class="text-2xl font-black text-cyan-300 uppercase tracking-widest drop-shadow-md">Вдих</span>
+    <dialog id="breatheModal" class="fixed inset-0 h-screen w-screen max-w-none max-h-none rounded-none border-none m-0 bg-black/98 backdrop:backdrop-blur-3xl transition-all text-white z-50 dialog-fullscreen">
+        <div class="flex flex-col items-center justify-center h-full w-full max-w-md mx-auto p-6 text-center">
+            <h3 class="text-3xl font-display font-black text-cyan-400 mb-2">Перетерпи бажання</h3>
+            <p class="text-slate-400 text-sm mb-16">Синхронізуй дихання з колом</p>
+            
+            <div class="relative w-56 h-56 flex items-center justify-center mb-16">
+                <div id="breatheCircle" class="w-48 h-48 rounded-full bg-gradient-to-tr from-cyan-500/10 to-blue-500/20 border-4 border-cyan-400 flex items-center justify-center shadow-[0_0_50px_rgba(6,182,212,0.25)] transition-all duration-1000">
+                    <span id="breatheText" class="text-2xl font-black text-cyan-300 uppercase tracking-widest drop-shadow-md">Вдих</span>
+                </div>
+                <div class="absolute inset-0 rounded-full border border-cyan-500/10 scale-[1.3] animate-ping opacity-25"></div>
             </div>
-            <div class="absolute inset-0 rounded-full border border-cyan-500/30 scale-[1.5]"></div>
+
+            <div class="text-4xl font-mono font-bold text-white mb-12" id="breatheTimer">60</div>
+
+            <button id="closeBreatheBtn" class="w-full max-w-xs bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 font-bold py-4 px-4 rounded-2xl transition active:scale-95">
+                Я впорався
+            </button>
         </div>
-
-        <div class="text-3xl font-mono font-bold text-white mb-8" id="breatheTimer">60</div>
-
-        <button id="closeBreatheBtn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 px-4 rounded-xl transition active:scale-95">
-            Я впорався
-        </button>
     </dialog>
 
     <script type="module" src="js/app.js"></script>
@@ -449,9 +508,9 @@
     </script>
     <!-- Undo Notification (Toast) -->
     <div id="undoNotification" class="fixed bottom-24 left-4 right-4 z-50 transform translate-y-32 opacity-0 transition-all duration-500 pointer-events-none">
-        <div class="bg-slate-800/95 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto">
+        <div class="bg-slate-900/95 backdrop-blur-xl border border-cyan-500/30 p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                     </svg>
@@ -461,10 +520,28 @@
                     <p class="text-[10px] text-slate-400" id="undoTimerText">У вас є 60 секунд</p>
                 </div>
             </div>
-            <button id="undoActionBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-6 py-2.5 rounded-xl transition shadow-lg shadow-emerald-500/20 active:scale-95">
+            <button id="undoActionBtn" class="bg-cyan-500 hover:bg-cyan-600 text-white text-[10px] font-black px-6 py-2.5 rounded-xl transition shadow-lg shadow-cyan-500/20 active:scale-95">
                 СКАСУВАТИ
             </button>
         </div>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div id="pwaInstallBanner" class="fixed bottom-4 left-4 right-4 bg-slate-900/95 backdrop-blur-xl border border-cyan-500/30 p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto transform translate-y-32 opacity-0 transition-all duration-500 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+            </div>
+            <div class="text-left">
+                <p class="text-xs font-bold text-white">Встановити додаток</p>
+                <p class="text-[10px] text-slate-400">Швидкий доступ на головному екрані</p>
+            </div>
+        </div>
+        <button id="pwaInstallBtn" class="bg-cyan-500 hover:bg-cyan-600 text-white text-[10px] font-black px-6 py-2.5 rounded-xl transition shadow-lg shadow-cyan-500/20 active:scale-95">
+            ВСТАНОВИТИ
+        </button>
     </div>
 
 </body>

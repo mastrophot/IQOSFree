@@ -1,4 +1,4 @@
-const CACHE_NAME = 'iqosfree-v3.1.0';
+const CACHE_NAME = 'iqosfree-v3.2.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -14,6 +14,7 @@ const ASSETS_TO_CACHE = [
   './assets/tree_2.png',
   './assets/tree_3.png',
   './assets/tree_4.png',
+  './assets/tree_5.png',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js',
