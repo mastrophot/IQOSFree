@@ -53,6 +53,8 @@
 html {
   background-color: var(--bg-canvas);
   color-scheme: dark;
+  overflow-x: clip;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -62,6 +64,7 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   touch-action: manipulation;
+  overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -69,17 +72,14 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  position: relative;
-  isolation: isolate;
 }
 
-body::before {
-  content: "";
+.site-bg {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
-  transform: translateZ(0);
+  background-color: var(--bg-canvas);
   background-image:
     linear-gradient(180deg, rgba(4, 9, 14, 0.32) 0%, rgba(4, 8, 12, 0.62) 100%),
     url("./assets/bg-forest.webp");
@@ -114,6 +114,8 @@ select:focus-visible {
 
 /* --- Main Adaptive Layout --- */
 .app-shell {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
