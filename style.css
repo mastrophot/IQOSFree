@@ -53,8 +53,6 @@
 html {
   background-color: var(--bg-canvas);
   color-scheme: dark;
-  overflow-x: clip;
-  overscroll-behavior-y: none;
 }
 
 body {
@@ -64,7 +62,6 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   touch-action: manipulation;
-  overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -72,6 +69,13 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
 }
 
 .site-bg {
@@ -117,6 +121,7 @@ select:focus-visible {
   position: relative;
   z-index: 1;
   width: 100%;
+  overflow-x: clip;
   max-width: 480px;
   margin: 0 auto;
   display: flex;

@@ -1,8 +1,8 @@
-const CACHE_NAME = "iqosfree-v4.0.5";
+const CACHE_NAME = "iqosfree-v4.0.6";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
-  "./style.css?v=9",
+  "./style.css?v=10",
   "./manifest.json",
   "./js/app.js?v=8",
   "./js/utils.js",
