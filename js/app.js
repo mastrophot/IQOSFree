@@ -5,7 +5,7 @@ import {
   formatCountdownMs,
   formatMoney,
 } from "./utils.js";
-import { renderSmokeChart } from "./charts.js";
+import { renderSmokeChart } from "./charts.js?v=8";
 
 // --- Bio-Core 3.0 Constants ---
 const REGEN_PER_HOUR = 10;

@@ -1,12 +1,12 @@
-const CACHE_NAME = "iqosfree-v4.0.3";
+const CACHE_NAME = "iqosfree-v4.0.4";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
-  "./style.css?v=7",
+  "./style.css?v=8",
   "./manifest.json",
-  "./js/app.js?v=6",
+  "./js/app.js?v=8",
   "./js/utils.js",
-  "./js/charts.js",
+  "./js/charts.js?v=8",
   "./assets/bg-forest.webp",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",

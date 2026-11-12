@@ -161,14 +161,16 @@ function paintChart() {
   const rawMax = Math.max(...totals, period === "week" ? limitValue || 0 : 0, 1);
   const yMax = niceCeiling(rawMax * 1.12, mode);
 
-  const padLeft = mode === "money" ? 44 : 30;
-  const padRight = 10;
-  const padTop = 16;
-  const padBottom = 26;
+  const isWide = width >= 520;
+  const axisFontSize = isWide ? 12.5 : 10.5;
+  const padLeft = mode === "money" ? (isWide ? 52 : 44) : (isWide ? 36 : 30);
+  const padRight = isWide ? 14 : 10;
+  const padTop = isWide ? 18 : 16;
+  const padBottom = isWide ? 32 : 26;
   const plotW = Math.max(40, width - padLeft - padRight);
   const plotH = Math.max(40, height - padTop - padBottom);
 
-  ctx.font = "500 10px Inter, system-ui, sans-serif";
+  ctx.font = `500 ${axisFontSize}px Inter, system-ui, sans-serif`;
   ctx.textBaseline = "middle";
 
   // Horizontal grid lines (4 steps)
@@ -178,14 +180,14 @@ function paintChart() {
     const val = yMax * (1 - ratio);
     const y = padTop + ratio * plotH;
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.065)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(padLeft, Math.round(y) + 0.5);
     ctx.lineTo(padLeft + plotW, Math.round(y) + 0.5);
     ctx.stroke();
 
-    ctx.fillStyle = "#71717a";
+    ctx.fillStyle = "#82828c";
     ctx.textAlign = "right";
     const tickLabel =
       mode === "money"
@@ -193,19 +195,19 @@ function paintChart() {
           ? `${Math.round(val)}`
           : `${Number(val.toFixed(val % 1 === 0 ? 0 : 1))}`
         : `${Math.round(val)}`;
-    ctx.fillText(tickLabel, padLeft - 6, y);
+    ctx.fillText(tickLabel, padLeft - (isWide ? 8 : 6), y);
   }
 
   const count = labels.length;
   const slotW = plotW / count;
-  const barW = Math.min(26, Math.max(10, Math.floor(slotW * 0.52)));
+  const barW = Math.min(isWide ? 36 : 26, Math.max(10, Math.floor(slotW * 0.5)));
   chartState.geometry = { padLeft, padTop, plotW, plotH, slotW };
 
   // Hover column highlight
   if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < count) {
     const colX = padLeft + hoverIndex * slotW;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.035)";
-    drawRoundedRect(ctx, colX + 3, padTop, slotW - 6, plotH, 6);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+    drawRoundedRect(ctx, colX + 3, padTop, slotW - 6, plotH, 7);
   }
 
   const hasAnyData = totals.some((t) => t > 0);
@@ -219,10 +221,12 @@ function paintChart() {
     const barX = Math.round(centerX - barW / 2);
 
     // X-axis label
-    ctx.fillStyle = hoverIndex === i ? "#f4f4f6" : "#71717a";
-    ctx.font = hoverIndex === i ? "600 10px Inter, system-ui, sans-serif" : "500 10px Inter, system-ui, sans-serif";
+    ctx.fillStyle = hoverIndex === i ? "#f4f4f6" : "#82828c";
+    ctx.font = hoverIndex === i
+      ? `600 ${axisFontSize}px Inter, system-ui, sans-serif`
+      : `500 ${axisFontSize}px Inter, system-ui, sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText(labels[i], centerX, padTop + plotH + 14);
+    ctx.fillText(labels[i], centerX, padTop + plotH + (isWide ? 18 : 14));
 
     if (totalV <= 0) continue;
 
@@ -233,13 +237,13 @@ function paintChart() {
     if (regH > 0) {
       const regY = padTop + plotH - regH;
       ctx.fillStyle = overLimit ? "#f59e0b" : "#10b981";
-      drawRoundedRect(ctx, barX, regY, barW, regH, emH > 0 ? 2 : 4);
+      drawRoundedRect(ctx, barX, regY, barW, regH, emH > 0 ? 3 : 5);
     }
 
     if (emH > 0) {
       const emY = padTop + plotH - regH - emH;
       ctx.fillStyle = "#ef4444";
-      drawRoundedRect(ctx, barX, emY, barW, Math.max(2, emH), 4);
+      drawRoundedRect(ctx, barX, emY, barW, Math.max(2, emH), 5);
     }
   }
 
@@ -248,7 +252,7 @@ function paintChart() {
     const limitY = Math.round(padTop + plotH - (limitValue / yMax) * plotH) + 0.5;
     ctx.save();
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = "rgba(56, 189, 248, 0.6)";
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.65)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(padLeft, limitY);
@@ -260,20 +264,24 @@ function paintChart() {
       mode === "money"
         ? `Ліміт ${Number(limitValue.toFixed(1))} ${getCurrencySymbol(currency)}`
         : `Ліміт ${limitValue}`;
-    ctx.font = "600 9px Inter, system-ui, sans-serif";
-    const textW = ctx.measureText(limitLabel).width + 8;
+    const limFont = isWide ? 11 : 9.5;
+    ctx.font = `600 ${limFont}px Inter, system-ui, sans-serif`;
+    const textW = ctx.measureText(limitLabel).width + (isWide ? 12 : 8);
+    const pillH = isWide ? 18 : 14;
     const pillX = padLeft + plotW - textW - 2;
-    const pillY = Math.max(padTop + 1, limitY - 15);
-    ctx.fillStyle = "rgba(9, 12, 18, 0.88)";
-    drawRoundedRect(ctx, pillX, pillY, textW, 13, 4);
+    const pillY = Math.max(padTop + 1, limitY - pillH - 2);
+    ctx.fillStyle = "rgba(9, 12, 18, 0.9)";
+    drawRoundedRect(ctx, pillX, pillY, textW, pillH, 5);
     ctx.fillStyle = "#38bdf8";
     ctx.textAlign = "left";
-    ctx.fillText(limitLabel, pillX + 4, pillY + 6.5);
+    ctx.fillText(limitLabel, pillX + (isWide ? 6 : 4), pillY + pillH / 2);
   }
 
   if (!hasAnyData) {
-    ctx.fillStyle = "#52525b";
-    ctx.font = "500 11px Inter, system-ui, sans-serif";
+    ctx.fillStyle = "#71717a";
+    ctx.font = isWide
+      ? "500 14px Inter, system-ui, sans-serif"
+      : "500 11.5px Inter, system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("Записів за обраний період немає", padLeft + plotW / 2, padTop + plotH / 2);
   }
@@ -289,37 +297,42 @@ function paintChart() {
     const detailLine = `${sumSticks} ${getStickPluralForm(sumSticks)} · ${formatMoney(sumMoney, currency)}`;
     const subLine = emSticks > 0 ? `За графіком: ${regSticks} · Поза: ${emSticks}` : `Усі за графіком (${regSticks})`;
 
-    ctx.font = "600 10px Inter, system-ui, sans-serif";
+    const fTitle = isWide ? 12 : 10;
+    const fDetail = isWide ? 13.5 : 11;
+    const fSub = isWide ? 11.5 : 9.5;
+
+    ctx.font = `600 ${fTitle}px Inter, system-ui, sans-serif`;
     const w1 = ctx.measureText(titleLine).width;
-    ctx.font = "700 11px Inter, system-ui, sans-serif";
+    ctx.font = `700 ${fDetail}px Inter, system-ui, sans-serif`;
     const w2 = ctx.measureText(detailLine).width;
-    ctx.font = "500 9.5px Inter, system-ui, sans-serif";
+    ctx.font = `500 ${fSub}px Inter, system-ui, sans-serif`;
     const w3 = ctx.measureText(subLine).width;
 
-    const boxW = Math.ceil(Math.max(w1, w2, w3)) + 18;
-    const boxH = 50;
+    const padX = isWide ? 12 : 9;
+    const boxW = Math.ceil(Math.max(w1, w2, w3)) + padX * 2;
+    const boxH = isWide ? 62 : 50;
     const anchorX = padLeft + hoverIndex * slotW + slotW / 2;
     const boxX = Math.max(padLeft + 2, Math.min(width - padRight - boxW - 2, anchorX - boxW / 2));
     const boxY = padTop + 4;
 
     ctx.fillStyle = "rgba(12, 14, 19, 0.96)";
-    drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 8);
+    drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 9);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
     ctx.lineWidth = 1;
     ctx.stroke();
 
     ctx.textAlign = "left";
     ctx.fillStyle = "#a1a1aa";
-    ctx.font = "600 10px Inter, system-ui, sans-serif";
-    ctx.fillText(titleLine, boxX + 9, boxY + 12);
+    ctx.font = `600 ${fTitle}px Inter, system-ui, sans-serif`;
+    ctx.fillText(titleLine, boxX + padX, boxY + (isWide ? 15 : 12));
 
     ctx.fillStyle = "#f4f4f6";
-    ctx.font = "700 11px Inter, system-ui, sans-serif";
-    ctx.fillText(detailLine, boxX + 9, boxY + 26.5);
+    ctx.font = `700 ${fDetail}px Inter, system-ui, sans-serif`;
+    ctx.fillText(detailLine, boxX + padX, boxY + (isWide ? 32.5 : 26.5));
 
     ctx.fillStyle = emSticks > 0 ? "#fca5a5" : "#6ee7b7";
-    ctx.font = "500 9.5px Inter, system-ui, sans-serif";
-    ctx.fillText(subLine, boxX + 9, boxY + 40);
+    ctx.font = `500 ${fSub}px Inter, system-ui, sans-serif`;
+    ctx.fillText(subLine, boxX + padX, boxY + (isWide ? 49.5 : 40));
   }
 }
 
