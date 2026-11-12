@@ -79,16 +79,26 @@ function buildBuckets(smokeHistory, period) {
   return { labels, fullLabels, regularCounts, emergencyCounts };
 }
 
-function niceCeiling(maxVal) {
-  if (maxVal <= 4) return 4;
-  if (maxVal <= 10) return Math.ceil(maxVal / 2) * 2;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(maxVal)));
-  const normalized = maxVal / magnitude;
-  if (normalized <= 1.5) return 1.5 * magnitude;
-  if (normalized <= 2) return 2 * magnitude;
-  if (normalized <= 3) return 3 * magnitude;
-  if (normalized <= 5) return 5 * magnitude;
-  return 10 * magnitude;
+function niceCeiling(maxVal, mode = "sticks") {
+  const safeMax = Math.max(Number(maxVal) || 0, mode === "money" ? 1 : 4);
+  const rawStep = safeMax / 4;
+
+  if (mode !== "money" && rawStep <= 1) {
+    return 4;
+  }
+
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const normalized = rawStep / magnitude;
+  const candidates = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+
+  for (const c of candidates) {
+    const step = c * magnitude;
+    if (mode !== "money" && !Number.isInteger(step)) continue;
+    if (step + 1e-9 >= rawStep) {
+      return step * 4;
+    }
+  }
+  return Math.ceil(rawStep) * 4;
 }
 
 function drawRoundedRect(ctx, x, y, w, h, radii) {
@@ -126,8 +136,6 @@ function paintChart() {
   if (activeCanvas.width !== Math.round(width * dpr) || activeCanvas.height !== Math.round(height * dpr)) {
     activeCanvas.width = Math.round(width * dpr);
     activeCanvas.height = Math.round(height * dpr);
-    activeCanvas.style.width = `${width}px`;
-    activeCanvas.style.height = `${height}px`;
   }
 
   const ctx = activeCanvas.getContext("2d");
@@ -150,8 +158,8 @@ function paintChart() {
   } = chartState;
 
   const totals = regularVals.map((v, i) => v + emergencyVals[i]);
-  const rawMax = Math.max(...totals, limitValue || 0, 1);
-  const yMax = niceCeiling(rawMax * 1.12);
+  const rawMax = Math.max(...totals, period === "week" ? limitValue || 0 : 0, 1);
+  const yMax = niceCeiling(rawMax * 1.12, mode);
 
   const padLeft = mode === "money" ? 44 : 30;
   const padRight = 10;

@@ -274,6 +274,7 @@ function cacheDom() {
 
   dom.pwaInstallBanner = document.getElementById("pwaInstallBanner");
   dom.pwaInstallBtn = document.getElementById("pwaInstallBtn");
+  dom.pwaDismissBtn = document.getElementById("pwaDismissBtn");
 
   dom.statusToast = document.getElementById("statusToast");
   dom.statusToastTitle = document.getElementById("statusToastTitle");
@@ -895,13 +896,17 @@ function stopRealtimeTicker() {
 }
 
 // --- PWA Install & Service Worker ---
+const PWA_DISMISSED_KEY = "iqosfree_pwa_dismissed_v1";
+
 function setupPwaAndServiceWorker() {
   let deferredPrompt = null;
 
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    dom.pwaInstallBanner.classList.add("is-visible");
+    if (localStorage.getItem(PWA_DISMISSED_KEY) !== "1") {
+      dom.pwaInstallBanner.classList.add("is-visible");
+    }
   });
 
   dom.pwaInstallBtn.addEventListener("click", async () => {
@@ -911,6 +916,15 @@ function setupPwaAndServiceWorker() {
     deferredPrompt = null;
     dom.pwaInstallBanner.classList.remove("is-visible");
   });
+
+  if (dom.pwaDismissBtn) {
+    dom.pwaDismissBtn.addEventListener("click", () => {
+      dom.pwaInstallBanner.classList.remove("is-visible");
+      try {
+        localStorage.setItem(PWA_DISMISSED_KEY, "1");
+      } catch {}
+    });
+  }
 
   if (!("serviceWorker" in navigator)) return;
 

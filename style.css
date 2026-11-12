@@ -116,12 +116,19 @@ select:focus-visible {
     display: grid;
     grid-template-columns: 410px minmax(0, 1fr);
     gap: 20px;
-    align-items: start;
+    align-items: stretch;
   }
 
-  .col-primary {
-    position: sticky;
-    top: 24px;
+  #statisticsSection {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chart-container {
+    flex: 1;
+    min-height: 200px;
+    height: auto;
   }
 }
 
@@ -711,10 +718,18 @@ select:focus-visible {
   height: 190px;
 }
 
+#smokeChart {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 /* Peak Activity Heatmap */
 .insights-box {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: auto;
+  padding-top: 14px;
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -1096,6 +1111,13 @@ dialog::backdrop {
   font-variant-numeric: tabular-nums;
 }
 
+.toast-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .toast-btn {
   padding: 8px 13px;
   border-radius: 10px;
@@ -1104,6 +1126,24 @@ dialog::backdrop {
   font-size: 0.72rem;
   font-weight: 800;
   flex-shrink: 0;
+}
+
+.toast-dismiss-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.toast-dismiss-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated-hover);
 }
 
 @media (prefers-reduced-motion: reduce) {
