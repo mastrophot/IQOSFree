@@ -1,12 +1,12 @@
 :root {
-  --bg-canvas: #000000;
-  --bg-chassis: #0c0e13;
+  --bg-canvas: #05090e;
+  --bg-chassis: rgba(11, 14, 20, 0.9);
   --bg-recess: #07080b;
   --bg-elevated: #151821;
   --bg-elevated-hover: #1c202c;
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.17);
 
   --text-primary: #f4f4f6;
   --text-secondary: #a1a1aa;
@@ -58,7 +58,7 @@ html {
 body {
   min-height: 100vh;
   min-height: 100dvh;
-  background-color: var(--bg-canvas);
+  background-color: transparent;
   color: var(--text-primary);
   font-family: var(--font-sans);
   touch-action: manipulation;
@@ -69,6 +69,23 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  position: relative;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  transform: translateZ(0);
+  background-image:
+    linear-gradient(180deg, rgba(4, 9, 14, 0.32) 0%, rgba(4, 8, 12, 0.62) 100%),
+    url("./assets/bg-forest.webp");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 button,
@@ -522,6 +539,9 @@ select:focus-visible {
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   padding: 13px 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 14px 28px -12px rgba(0, 0, 0, 0.82);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
