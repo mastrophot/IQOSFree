@@ -1,34 +1,38 @@
 {
-  "name": "Кидай Курити",
+  "name": "IQOSFree — Контроль нікотину",
   "short_name": "IQOSFree",
-  "start_url": "./index.html",
+  "description": "Автономний трекер відмови від стіків та контролю інтервалів із локальною аналітикою.",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "assets/icons/icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
     {
-      "name": "ПОКУРИВ",
-      "short_name": "ПОКУРИВ",
-      "url": "./index.html?action=smoke",
+      "name": "Перетерпіти тягу (SOS)",
+      "short_name": "SOS 60с",
+      "url": "./?action=sos",
       "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Стік поза графіком",
-      "short_name": "Поза графіком",
-      "url": "./index.html?action=emergency",
+      "name": "Зафіксувати стік",
+      "short_name": "Стік",
+      "url": "./?action=smoke",
       "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]

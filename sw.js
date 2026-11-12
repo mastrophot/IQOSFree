@@ -1,89 +1,105 @@
-const CACHE_NAME = 'iqosfree-v3.3.0';
+const CACHE_NAME = "iqosfree-v4.0.0";
 const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './style.css',
-  './manifest.json',
-  './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png',
-  './js/app.js',
-  './js/utils.js',
-  './js/charts.js',
-  './js/firebase-config.js',
-  './assets/tree_1.png',
-  './assets/tree_2.png',
-  './assets/tree_3.png',
-  './assets/tree_4.png',
-  './assets/tree_5.png',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/chart.js',
-  'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js',
-  'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js',
-  'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'
+  "./",
+  "./index.html",
+  "./style.css?v=4",
+  "./manifest.json",
+  "./js/app.js?v=4",
+  "./js/utils.js",
+  "./js/charts.js",
+  "./assets/icons/icon-192.png",
+  "./assets/icons/icon-512.png",
+  "./assets/tree_1.webp",
+  "./assets/tree_2.webp",
+  "./assets/tree_3.webp",
+  "./assets/tree_4.webp",
+  "./assets/tree_5.webp",
 ];
 
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching all assets');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
   );
-  self.skipWaiting(); // Force active immediately
+  if (!self.registration.active) {
+    self.skipWaiting();
+  }
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((cacheNames) =>
+        Promise.all(
+          cacheNames.map((name) => (name !== CACHE_NAME ? caches.delete(name) : Promise.resolve()))
+        )
+      )
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+
   const url = new URL(event.request.url);
-  
-  // Network-first for HTML and JS files to ensure fresh data & sync logic
-  if ((url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('.js')) 
-      && url.origin === self.location.origin) {
+  if (url.origin !== self.location.origin) return;
+
+  const isDocumentOrScript =
+    event.request.mode === "navigate" ||
+    url.pathname.endsWith(".html") ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith("/");
+
+  if (isDocumentOrScript) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Update cache with fresh response
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
           return response;
         })
-        .catch(() => caches.match(event.request)) // Fallback to cache if offline
+        .catch(async () => {
+          const exact = await caches.match(event.request);
+          if (exact) return exact;
+          const ignoreQuery = await caches.match(event.request, { ignoreSearch: true });
+          if (ignoreQuery) return ignoreQuery;
+          return caches.match("./index.html");
+        })
     );
     return;
   }
-  
-  // Cache-first for static assets (images, CSS, etc.)
+
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+    caches.match(event.request, { ignoreSearch: true }).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      });
     })
   );
 });
 
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-      caches.keys().then((cacheNames) => {
-          return Promise.all(
-              cacheNames.map((cacheName) => {
-                  if (cacheName !== CACHE_NAME) {
-                      return caches.delete(cacheName);
-                  }
-              })
-          );
-      })
-  );
-  self.clients.claim(); // Take control of all clients immediately
-});
-
-// PWA Widgets event listener (Experimental Android/Windows support) logic.
-self.addEventListener('widgetclick', event => {
-  if (event.action === 'smoke') {
-    event.waitUntil(clients.openWindow('./index.html?action=smoke'));
-  } else if (event.action === 'emergency') {
-    event.waitUntil(clients.openWindow('./index.html?action=emergency'));
+self.addEventListener("widgetclick", (event) => {
+  if (event.action === "sos") {
+    event.waitUntil(self.clients.openWindow("./?action=sos"));
+  } else if (event.action === "smoke") {
+    event.waitUntil(self.clients.openWindow("./?action=smoke"));
+  } else if (event.action === "emergency") {
+    event.waitUntil(self.clients.openWindow("./?action=emergency"));
   } else {
-    event.waitUntil(clients.openWindow('./index.html'));
+    event.waitUntil(self.clients.openWindow("./"));
   }
 });

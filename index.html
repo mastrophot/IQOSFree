@@ -1,548 +1,394 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Кидай Курити - IQOS Free</title>
-    <script>
-        // NUCLEAR RESET SYSTEM (Runs before anything else)
-        if (window.location.search.includes('reset=true')) {
-            localStorage.clear();
-            // Set flag to force server-side wipe in app.js
-            localStorage.setItem('FORCE_FIREBASE_RESET', 'true');
-            // Clear all cookies
-            document.cookie.split(";").forEach(function(c) { 
-                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-            });
-            alert("ПРИМУСОВЕ ВИДАЛЕННЯ ВИКОНАНО. Додаток очистить сервер при наступному запуску.");
-            window.location.href = window.location.origin + window.location.pathname;
-        }
-    </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="style.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="description"
+      content="IQOSFree — автономний трекер відмови від стіків, контролю інтервалів, детоксикації та витрат."
+    />
+    <title>IQOSFree — Контроль нікотину</title>
 
-    <!-- PWA Settings -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#020617">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        display: ['Outfit', 'sans-serif'],
-                    },
-                    colors: {
-                        slate: {
-                            850: '#1e293b', 
-                            900: '#0f172a',
-                            950: '#020617',
-                        }
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
-        }
-    </script>
-</head>
-<body class="bg-black text-white flex items-center justify-center min-h-screen p-4 selection:bg-cyan-500 selection:text-white overflow-x-hidden relative font-sans">
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2216%22 fill=%22%23071422%22/><rect x=%223%22 y=%223%22 width=%2258%22 height=%2258%22 rx=%2213%22 fill=%22none%22 stroke=%22%2334d399%22 stroke-opacity=%220.45%22 stroke-width=%222%22/><path d=%22M32 14C21 23 18 33 22 42c3 6 9 8 10 8v6h0v-6c7-1 13-7 13-16 0-8-5-14-13-20z%22 fill=%22none%22 stroke=%22%2334d399%22 stroke-width=%223.5%22 stroke-linejoin=%22round%22/><path d=%22M32 22v28%22 stroke=%22%2334d399%22 stroke-width=%223%22 stroke-linecap=%22round%22/></svg>"
+    />
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+    <link rel="manifest" href="manifest.json" />
 
-    <!-- WebGL / Mesh Background Container -->
-    <div id="mesh-background" class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div class="mesh-blob blob-primary"></div>
-        <div class="mesh-blob blob-secondary"></div>
-        <div class="mesh-blob blob-accent"></div>
-        <div class="mesh-overlay"></div>
-    </div>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Outfit:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
 
-    <!-- Loader -->
-    <div id="loader" class="relative z-50 text-center flex flex-col items-center justify-center h-screen w-screen absolute top-0 left-0 bg-black">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mb-4 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
-        <p class="text-xl text-slate-400 font-light tracking-wide animate-pulse">Завантаження...</p>
-    </div>
-
-    <!-- Main App Container -->
-    <div id="app" class="hidden w-full max-w-lg mx-auto text-center relative z-10 pb-6">
-        
-        <div id="main-view" class="flex flex-col gap-3 fade-in">
-            
-            <!-- Header -->
-            <div class="mt-1 flex items-center justify-between">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-xl font-display font-black tracking-tight text-white drop-shadow-sm text-left">
-                            Кидай Курити
-                        </h1>
-                        <span class="text-[8px] bg-slate-900 text-cyan-500 px-1.5 py-0.5 rounded-md font-mono border border-cyan-500/20">v3.2.0</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div id="syncIndicator" class="w-2 h-2 rounded-full bg-slate-700 animate-pulse"></div>
-                        <p id="userStatusDisplay" class="text-[10px] text-slate-400 font-medium tracking-wide uppercase text-left">...</p>
-                        <span id="accountBadge" class="text-[8px] px-1.5 py-0.5 rounded font-bold hidden"></span>
-                    </div>
-                </div>
-                 <button id="openSettingsButton" class="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors backdrop-blur-md hover:scale-105 active:scale-95 duration-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </button>
+    <link rel="stylesheet" href="style.css?v=4" />
+    <script type="module" src="js/app.js?v=4"></script>
+  </head>
+  <body>
+    <main id="appShell" class="app-shell">
+      <!-- Primary Column: Tree, Timer & Action Controls -->
+      <section class="col-primary" aria-label="Стан та керування">
+        <div class="chassis-card">
+          <header class="top-bar">
+            <div class="brand-group">
+              <div class="brand-row">
+                <h1 class="brand-title">IQOSFree</h1>
+                <span class="version-pill">v4.0.0</span>
+              </div>
+              <div class="status-row">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span id="storageStatusText">Автономне сховище активне</span>
+              </div>
             </div>
-            
-            <!-- Hero Section / Life Tree (Tamagotchi) -->
-            <div class="relative mb-8 pt-4 flex flex-col items-center justify-center gap-6">
-                <!-- Tree Stage -->
-                <div id="treeContainer" class="relative z-0">
-                    <div class="toxic-cloud" id="toxicCloud"></div>
-                    <!-- SVGs injected here -->
-                </div>
-                
-                <!-- Stats Labels Below Tree -->
-                <div class="flex flex-col items-center z-10">
-                    <span id="timer" class="timer-text drop-shadow-2xl">GO!</span>
-                    <span id="statusMessage" class="status-text mt-3">Очікування</span>
-                    <div class="flex flex-col items-center gap-1.5 mt-4">
-                        <div id="growthStage" class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Стадія: 1 / 5</div>
-                        <div id="healthValue" class="text-[10px] font-black text-primary-glow bg-surface-glass px-4 py-1.5 rounded-full border border-white/5 backdrop-blur-md">Health: 100%</div>
-                    </div>
-                </div>
-            </div>
-            <!-- Primary Action Button -->
-            <button id="smokeButton" class="group relative w-full bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 disabled:from-slate-800 disabled:to-slate-900 disabled:text-slate-600 text-white font-black py-4 px-6 rounded-2xl text-lg transition-all duration-300 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_60px_-15px_rgba(16,185,129,0.6)] transform hover:-translate-y-1 active:scale-[0.98] disabled:hover:translate-y-0 disabled:shadow-none overflow-hidden delay-100 fade-in">
-                <span class="relative z-10 flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
-                    </svg>
-                    ПОКУРИВ
-                </span>
-                <div class="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+            <button
+              type="button"
+              id="openSettingsButton"
+              class="icon-btn"
+              aria-label="Налаштування"
+              title="Налаштування"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
             </button>
-            
+          </header>
 
-            <!-- Stats Cards Grid -->
-            <div id="emergencySyncBox" class="hidden animate-bounce mt-2 p-3 bg-red-500/20 border border-red-500/40 rounded-2xl flex flex-col items-center">
-                <p class="text-red-400 text-[10px] font-bold mb-1 uppercase">Проблема зі зв'язком!</p>
-                <button onclick="window.location.href='?reset=true'" class="bg-red-500 text-white text-[10px] font-black px-4 py-2 rounded-lg">
-                    КЛИКНУТИ - ПРИМУСОВЕ СКИНУТИ ВСЕ
-                </button>
+          <div class="hero-stage">
+            <div id="treeContainer">
+              <div class="toxic-cloud" id="toxicCloud"></div>
+              <img
+                id="treeImage"
+                src="assets/tree_1.webp"
+                width="210"
+                height="210"
+                alt="Дерево стану організму"
+              />
             </div>
 
-            <div class="grid grid-cols-2 gap-2 delay-200 fade-in">
-                <!-- Smoked Today -->
-                <div class="glass-panel p-3 rounded-2xl text-left flex flex-col justify-between h-20">
-                    <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                        Сьогодні
-                    </div>
-                    <div>
-                        <p class="text-xl font-bold text-white" id="smokedTodayValue">0</p>
-                        <p class="text-slate-500 text-[9px] mt-0.5" id="smokedTodayPlanned">...</p>
-                    </div>
-                </div>
-
-                <!-- Spent Today -->
-                <div class="glass-panel p-3 rounded-2xl text-left flex flex-col justify-between h-20">
-                    <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        Витрати
-                    </div>
-                    <div>
-                        <p class="text-xl font-bold text-white" id="spentTodayValue">0</p>
-                        <p class="text-slate-500 text-[9px] mt-0.5" id="spentTodayPlanned">...</p>
-                    </div>
-                </div>
-
-                <!-- Financial Balance (Unified) -->
-                <div class="glass-panel p-3 rounded-2xl text-left col-span-2 flex items-center justify-between border-l-4 border-emerald-500/50" id="balanceCard">
-                     <div>
-                        <div id="financialBalanceLabel" class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Фінансовий Баланс</div>
-                        <p class="text-xl font-black text-emerald-400 mt-0.5" id="financialBalanceValue">$0.00</p>
-                    </div>
-                    <div class="p-2 bg-slate-800/50 rounded-xl">
-                        <span id="balanceIcon" class="text-xl">💰</span>
-                    </div>
-                </div>
+            <div class="tree-badges">
+              <span id="growthStage" class="meta-pill">Стадія 1/5 · Паросток</span>
+              <span id="healthValue" class="meta-pill hp-good">Здоров'я: 100%</span>
             </div>
 
-            <!-- Streaks & Emergency Grid -->
-             <div class="grid grid-cols-2 gap-2 delay-300 fade-in">
-                 <div class="bg-slate-900/50 border border-slate-800 p-3 rounded-2xl text-left">
-                     <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Період без куріння</div>
-                     <p class="text-lg font-bold text-cyan-400" id="smokeFreeStreak">0</p>
-                     <p class="text-[9px] text-slate-500 mt-0.5">Рекорд: <span id="longestSmokeFreeStreak" class="text-slate-300">0</span></p>
-                 </div>
-
-                 <button id="emergencySmokeButton" class="p-3 rounded-2xl text-left bg-red-900/10 border border-red-500/20 hover:bg-red-900/20 hover:border-red-500/40 transition-all group active:scale-95 flex flex-col justify-center">
-                     <p class="text-red-100 text-[11px] font-black leading-tight uppercase">Стік поза графіком</p>
-                 </button>
-             </div>
-
-             <!-- SOS Button (Urge Surfing) -->
-             <button id="sosButton" class="group relative w-full mt-2 bg-gradient-to-r from-blue-600/30 to-cyan-600/30 hover:from-blue-600/40 hover:to-cyan-600/40 border border-cyan-500/30 text-cyan-400 font-black py-4 px-6 rounded-2xl transition-all shadow-[0_10px_30px_rgba(6,182,212,0.15)] active:scale-[0.98] fade-in delay-300 flex items-center justify-center gap-2 overflow-hidden">
-                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                 </svg>
-                 ХОЧУ КУРИТИ (SOS)
-                 <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-             </button>
-
-             <!-- Nicotine Detox Tracker Section -->
-             <div id="detoxSection" class="bg-slate-900/50 border border-slate-800 p-5 rounded-3xl delay-350 fade-in flex flex-col gap-4 text-left">
-                 <h2 class="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-2">
-                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                     </svg>
-                     Детоксикація Організму
-                 </h2>
-                 
-                 <div class="space-y-3.5">
-                     <!-- 20 Mins -->
-                     <div>
-                         <div class="flex justify-between text-[10px] mb-1">
-                             <span class="text-slate-300 font-medium">20 хв: Нормалізація тиску & пульсу</span>
-                             <span id="detoxVal-20m" class="text-cyan-400 font-mono font-bold">0%</span>
-                         </div>
-                         <div class="w-full h-1.5 bg-black border border-white/5 rounded-full overflow-hidden">
-                             <div id="detoxBar-20m" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000" style="width: 0%"></div>
-                         </div>
-                     </div>
-                     
-                     <!-- 8 Hours -->
-                     <div>
-                         <div class="flex justify-between text-[10px] mb-1">
-                             <span class="text-slate-300 font-medium">8 год: Зниження нікотину в крові вдвічі</span>
-                             <span id="detoxVal-8h" class="text-cyan-400 font-mono font-bold">0%</span>
-                         </div>
-                         <div class="w-full h-1.5 bg-black border border-white/5 rounded-full overflow-hidden">
-                             <div id="detoxBar-8h" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000" style="width: 0%"></div>
-                         </div>
-                     </div>
-                     
-                     <!-- 24 Hours -->
-                     <div>
-                         <div class="flex justify-between text-[10px] mb-1">
-                             <span class="text-slate-300 font-medium">24 год: Очищення легень від аерозолю</span>
-                             <span id="detoxVal-24h" class="text-cyan-400 font-mono font-bold">0%</span>
-                         </div>
-                         <div class="w-full h-1.5 bg-black border border-white/5 rounded-full overflow-hidden">
-                             <div id="detoxBar-24h" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000" style="width: 0%"></div>
-                         </div>
-                     </div>
-                     
-                     <!-- 48 Hours -->
-                     <div>
-                         <div class="flex justify-between text-[10px] mb-1">
-                             <span class="text-slate-300 font-medium">48 год: Повне виведення нікотину & відновлення рецепторів</span>
-                             <span id="detoxVal-48h" class="text-cyan-400 font-mono font-bold">0%</span>
-                         </div>
-                         <div class="w-full h-1.5 bg-black border border-white/5 rounded-full overflow-hidden">
-                             <div id="detoxBar-48h" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000" style="width: 0%"></div>
-                         </div>
-                     </div>
-                 </div>
-             </div>
-
-             <!-- Statistics Section -->
-             <div id="statisticsSection" class="bg-slate-900/50 border border-slate-800 p-5 rounded-3xl delay-400 fade-in flex flex-col gap-4">
-                 <div class="flex items-center justify-between">
-                     <h2 class="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-2">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" /></svg>
-                         Статистика
-                     </h2>
-                     
-                     <!-- View Toggle & Tabs -->
-                     <div class="flex items-center gap-2">
-                         <!-- Mode Toggle -->
-                         <div class="flex bg-slate-800/50 rounded-lg p-0.5" id="statsModeToggle">
-                             <button data-mode="sticks" class="mode-btn active px-2 py-1 rounded-md text-[10px] font-bold text-white bg-slate-700 shadow-sm transition-all">🚬</button>
-                             <button data-mode="money" class="mode-btn px-2 py-1 rounded-md text-[10px] font-bold text-slate-400 hover:text-white transition-all">💰</button>
-                         </div>
-                         
-                         <!-- Period Tabs -->
-                         <div class="flex bg-slate-800/50 rounded-lg p-0.5">
-                             <button data-period="day" class="stats-tab active px-3 py-1 rounded-md text-[10px] font-bold text-white bg-slate-700 shadow-sm transition-all">День</button>
-                             <button data-period="week" class="stats-tab px-3 py-1 rounded-md text-[10px] font-medium text-slate-400 hover:text-white transition-all">Тиж</button>
-                             <button data-period="all" class="stats-tab px-3 py-1 rounded-md text-[10px] font-medium text-slate-400 hover:text-white transition-all">Всі</button>
-                         </div>
-                     </div>
-                 </div>
-
-                 <!-- General Stats Summary -->
-                 <div class="flex justify-between items-center text-[10px] px-1">
-                     <div class="text-slate-400">Всього: <span id="totalSmokesAllTime" class="text-white font-bold">0</span></div>
-                     <div class="text-slate-400">Середнє: <span id="avgSmokesPerDay" class="text-white font-bold">0</span></div>
-                 </div>
-
-                 <div class="chart-container h-48 w-full relative">
-                     <canvas id="smokeChart"></canvas>
-                 </div>
-                 
-                  <!-- Insights / Heatmap -->
-                <div id="insightsSection" class="mt-2 pt-4 border-t border-slate-700/50 hidden">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-bold uppercase text-slate-500">Пікова активність</span>
-                        <span id="peakHourValue" class="text-xs font-bold text-emerald-400">...</span>
-                    </div>
-                    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden flex" id="activityHeatmap"></div>
-                    <div id="heatmapLabels" class="flex justify-between text-[8px] text-slate-600 mt-1 font-mono">
-                        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:59</span>
-                    </div>
-                </div>
-
-                </div>
+            <div class="timer-readout">
+              <span id="timer" class="timer-value is-open">00:00</span>
+              <span id="statusMessage" class="timer-caption">Пауза між стіками виконана</span>
             </div>
+          </div>
 
-             <!-- Footer / Auth -->
-             <div class="mt-4 mb-20">
-                <button id="signInGoogleButton" class="w-full glass-panel py-4 px-6 rounded-2xl text-slate-300 font-medium hover:bg-white/5 transition flex items-center justify-center gap-3">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-5 h-5 opacity-80">
-                    <span id="signInText">Увійти через Google</span>
-                </button>
-             </div>
+          <div class="action-deck">
+            <button type="button" id="sosButton" class="btn-sos">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+                <path d="M8 12h8"></path>
+                <path d="M12 8v8"></path>
+              </svg>
+              <span>Перетерпіти тягу · SOS (60с)</span>
+            </button>
+
+            <div class="smoke-controls-row">
+              <button type="button" id="smokeButton" class="btn-smoke-regular">
+                <span class="btn-main-label" id="smokeButtonLabel">Зафіксувати стік</span>
+                <span class="btn-sub-label" id="smokeButtonSub">−5% HP · −6 год росту</span>
+              </button>
+
+              <button type="button" id="emergencySmokeButton" class="btn-smoke-emergency">
+                <span class="btn-main-label">Поза графіком</span>
+                <span class="btn-sub-label">−10% HP · −12 год росту</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <!-- Settings View (Modal) -->
-        <dialog id="settings-view" class="bg-slate-950/90 backdrop-blur-xl p-6 overflow-y-auto fade-in shadow-2xl rounded-3xl z-50 transition-all text-white border border-slate-700/50 w-full max-w-lg m-auto max-h-[90vh]">
-             <div class="mx-auto mt-4">
-                <div class="flex items-center justify-between mb-10">
-                     <h2 class="text-2xl font-display font-black text-white">Налаштування</h2>
-                     <button id="closeSettingsButton" class="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white transition hover:scale-105 active:scale-95">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+        <!-- KPI Telemetry -->
+        <div class="kpi-grid">
+          <div class="kpi-cell">
+            <span class="kpi-label">Сьогодні стіків</span>
+            <span id="smokedTodayValue" class="kpi-value">0 стіків</span>
+            <span id="smokedTodayPlanned" class="kpi-sub">Ліміт: 10 на день</span>
+          </div>
 
-                <div class="space-y-4">
-                    <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                        <label for="packPrice" class="block text-sm font-medium text-slate-300">Ціна пачки ($)</label>
-                        <input type="number" id="packPrice" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono transition-all">
-                    </div>
-                    <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                        <label for="packSize" class="block text-sm font-medium text-slate-300">Кількість в пачці</label>
-                        <input type="number" id="packSize" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono transition-all">
-                    </div>
-                    
-                    <div class="glass-panel p-5 rounded-2xl">
-                         <label for="oldHabit" class="block text-sm font-medium text-slate-300 mb-2">Звичка (цигарки/день)</label>
-                         <div class="flex justify-between items-center">
-                             <span id="oldHabitMoney" class="text-emerald-400 text-xs font-mono font-bold">$0.00/день</span>
-                             <input type="number" id="oldHabit" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 text-right font-mono transition-all">
-                         </div>
-                    </div>
+          <div class="kpi-cell">
+            <span class="kpi-label">Витрати сьогодні</span>
+            <span id="spentTodayValue" class="kpi-value val-good">0.00 ₴</span>
+            <span id="spentTodayPlanned" class="kpi-sub">План: 0.00 ₴</span>
+          </div>
 
-                    <div class="glass-panel p-5 rounded-2xl">
-                        <label for="desiredDailySticks" class="block text-sm font-medium text-slate-300 mb-2">Ціль (цигарки/день)</label>
-                        <div class="flex justify-between items-center">
-                            <span id="desiredDailySticksMoney" class="text-emerald-400 text-xs font-mono font-bold">$0.00/день</span>
-                            <input type="number" id="desiredDailySticks" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 text-right font-mono transition-all">
-                        </div>
-                   </div>
+          <div class="kpi-cell">
+            <span class="kpi-label">Час без нікотину</span>
+            <span id="smokeFreeStreak" class="kpi-value val-cyan">0 хвилин</span>
+            <span class="kpi-sub">Рекорд: <strong id="longestSmokeFreeStreak">0 годин</strong></span>
+          </div>
 
-                    <div class="settings-item p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                        <label for="smokeIntervalMinutes" class="block text-sm font-medium text-slate-300">Інтервал (хв)</label>
-                        <input type="number" id="smokeIntervalMinutes" class="w-24 p-2 rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-right font-mono transition-all">
-                    </div>
-
-                    <!-- Sync Info -->
-                    <div class="px-5 py-2 flex justify-between items-center bg-slate-900/40 rounded-xl border border-slate-800/50">
-                        <span class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Останній засланий звіт</span>
-                        <span id="lastSettingsSyncTime" class="text-[10px] font-mono text-emerald-500/80">Щойно</span>
-                    </div>
-                </div>
-                
-                <div class="mt-8 flex flex-col gap-4">
-                    <button id="saveSettingsButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-4 rounded-2xl transition shadow-lg shadow-emerald-500/20 active:scale-95">Зберегти налаштування</button>
-                    
-                    <div class="pt-6 border-t border-slate-800">
-                        <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 text-center">Обслуговування та Скидання</h3>
-                        
-                        <div class="grid grid-cols-2 gap-3">
-                            <button id="forceSyncButton" class="glass-button bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 group active:scale-95">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                Синхро
-                            </button>
-                            <button id="hardRefreshButton" class="glass-button bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-300 border border-indigo-500/20 text-xs font-bold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 active:scale-95">
-                                <span class="animate-pulse">💎</span> ПОВНЕ ОНОВЛЕННЯ
-                            </button>
-                        </div>
-                        <button id="resetDataButton" class="w-full mt-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black py-4 px-4 rounded-xl border border-red-500/20 transition active:scale-95">
-                                 СНУЛИТИ ДАНІ
-                             </button>
-                        
-                        <button id="deepResetButton" class="w-full mt-4 bg-slate-900/50 hover:bg-slate-900 text-slate-500 hover:text-red-400 text-[10px] font-black py-3 px-4 rounded-xl border border-slate-800 hover:border-red-500/30 transition-all uppercase tracking-wider active:scale-95">
-                            Повне скидання кешу та вихід
-                        </button>
-                    </div>
-
-                    <button id="signOutButton" class="w-full text-slate-500 text-sm font-medium py-3 hover:text-slate-300 hidden border-t border-slate-800 pt-6 active:scale-95">
-                        Вийти з акаунту
-                    </button>
-                </div> 
-            </div> 
-        </dialog> 
-    </div> 
-
-    <script>
-        // Global Fallback Handlers (Last resort for mobile)
-        window.triggerResetData = function() { 
-            console.log('Attempting reset...');
-            if (window.handleResetData) {
-                window.handleResetData();
-            } else {
-                console.error('handleResetData not found on window. Falling back to emergency reset.');
-                if (confirm("Помилка додатка. Очистити дані локально?")) {
-                    localStorage.clear();
-                    location.reload();
-                }
-            }
-        };
-        window.triggerDeepReset = function() {
-            if (window.handleDeepReset) {
-                window.handleDeepReset();
-            } else {
-                localStorage.clear();
-                location.reload();
-            }
-        };
-    </script>
-
-    <!-- Confirm Modal -->
-    <dialog id="confirmModal" class="bg-slate-900 border border-slate-700/50 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl m-auto text-white backdrop:bg-slate-950/80 backdrop:backdrop-blur-md transition-all">
-        <h3 class="text-xl font-display font-bold text-white mb-4">Ви впевнені?</h3>
-        <p id="modalText" class="text-slate-400 mb-8 leading-relaxed">Цю дію неможливо скасувати.</p>
-        <div class="flex gap-4">
-            <button id="confirmNo" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 px-4 rounded-xl transition hover:scale-105 active:scale-95">Ні</button>
-            <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/20 hover:scale-105 active:scale-95">Так</button>
+          <div class="kpi-cell">
+            <span id="financialBalanceLabel" class="kpi-label">Денний баланс</span>
+            <span id="financialBalanceValue" class="kpi-value val-good">+0.00 ₴</span>
+            <span id="allTimeSavingsSub" class="kpi-sub">Всього збережено: +0.00 ₴</span>
+          </div>
         </div>
+      </section>
+
+      <!-- Secondary Column: Detox & Analytics -->
+      <section class="col-secondary" aria-label="Детоксикація та статистика">
+        <div class="chassis-card">
+          <div class="section-head">
+            <h2 class="section-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              Детоксикація організму
+            </h2>
+          </div>
+
+          <div class="detox-list">
+            <div>
+              <div class="detox-item-top">
+                <span class="detox-label">20 хв · Нормалізація тиску та пульсу</span>
+                <span id="detoxVal-20m" class="detox-pct">0%</span>
+              </div>
+              <div class="detox-track">
+                <div id="detoxBar-20m" class="detox-fill"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="detox-item-top">
+                <span class="detox-label">8 год · Зниження нікотину в крові вдвічі</span>
+                <span id="detoxVal-8h" class="detox-pct">0%</span>
+              </div>
+              <div class="detox-track">
+                <div id="detoxBar-8h" class="detox-fill"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="detox-item-top">
+                <span class="detox-label">24 год · Очищення дихальних шляхів від аерозолю</span>
+                <span id="detoxVal-24h" class="detox-pct">0%</span>
+              </div>
+              <div class="detox-track">
+                <div id="detoxBar-24h" class="detox-fill"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="detox-item-top">
+                <span class="detox-label">48 год · Виведення нікотину та чутливість рецепторів</span>
+                <span id="detoxVal-48h" class="detox-pct">0%</span>
+              </div>
+              <div class="detox-track">
+                <div id="detoxBar-48h" class="detox-fill"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="statisticsSection" class="chassis-card">
+          <div class="section-head">
+            <h2 class="section-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+              Динаміка та пікові вікна
+            </h2>
+
+            <div class="segmented-controls">
+              <div class="seg-group" id="statsModeToggle" role="group" aria-label="Одиниці виміру">
+                <button type="button" data-mode="sticks" class="seg-btn mode-btn active">Стіки</button>
+                <button type="button" data-mode="money" class="seg-btn mode-btn">Гроші</button>
+              </div>
+
+              <div class="seg-group" role="group" aria-label="Період графіка">
+                <button type="button" data-period="day" class="seg-btn stats-tab active">День</button>
+                <button type="button" data-period="week" class="seg-btn stats-tab">Тиж</button>
+                <button type="button" data-period="all" class="seg-btn stats-tab">6 міс</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats-summary-strip">
+            <span>Усього зафіксовано: <strong id="totalSmokesAllTime">0</strong></span>
+            <span>Середнє за добу: <strong id="avgSmokesPerDay">0.0</strong></span>
+          </div>
+
+          <div class="chart-container">
+            <canvas id="smokeChart" aria-label="Графік використання стіків"></canvas>
+          </div>
+
+          <div id="insightsSection" class="insights-box">
+            <div class="insights-head">
+              <span id="insightsTitle" class="insights-label">Пікове вікно (30 днів)</span>
+              <span id="peakHourValue" class="insights-peak">—</span>
+            </div>
+            <div id="activityHeatmap" class="heatmap-strip"></div>
+            <div id="heatmapLabels" class="heatmap-labels"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Settings Modal -->
+    <dialog id="settingsModal" class="modal-sheet" aria-labelledby="settingsTitle">
+      <div class="modal-head">
+        <h2 id="settingsTitle" class="modal-title">Налаштування</h2>
+        <button type="button" id="closeSettingsButton" class="icon-btn" aria-label="Закрити налаштування">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="settings-list">
+        <div class="setting-row">
+          <div class="setting-meta">
+            <label for="currencySelect" class="setting-label">Валюта обліку</label>
+          </div>
+          <select id="currencySelect" class="setting-select">
+            <option value="UAH">₴ Гривня</option>
+            <option value="USD">$ Долар</option>
+            <option value="EUR">€ Євро</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-meta">
+            <label for="packPrice" class="setting-label">Ціна пачки</label>
+          </div>
+          <input type="number" id="packPrice" min="0" step="0.5" class="setting-input" />
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-meta">
+            <label for="packSize" class="setting-label">Стіків у пачці</label>
+          </div>
+          <input type="number" id="packSize" min="1" step="1" class="setting-input" />
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-meta">
+            <label for="oldHabit" class="setting-label">Минула звичка (шт/день)</label>
+            <span id="oldHabitMoney" class="setting-hint">0.00 ₴/день</span>
+          </div>
+          <input type="number" id="oldHabit" min="0" step="1" class="setting-input" />
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-meta">
+            <label for="desiredDailySticks" class="setting-label">Денний ліміт (шт/день)</label>
+            <span id="desiredDailySticksMoney" class="setting-hint">0.00 ₴/день</span>
+          </div>
+          <input type="number" id="desiredDailySticks" min="0" step="1" class="setting-input" />
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-meta">
+            <label for="smokeIntervalMinutes" class="setting-label">Мінімальний інтервал (хв)</label>
+          </div>
+          <input type="number" id="smokeIntervalMinutes" min="1" step="5" class="setting-input" />
+        </div>
+      </div>
+
+      <button type="button" id="saveSettingsButton" class="btn-primary-save">
+        Зберегти параметри
+      </button>
+
+      <div class="maintenance-block">
+        <span class="maintenance-title">Резервна копія та обслуговування</span>
+
+        <div class="backup-grid">
+          <button type="button" id="exportBackupButton" class="btn-utility">
+            Експорт (.json)
+          </button>
+          <button type="button" id="importBackupButton" class="btn-utility">
+            Імпорт (.json)
+          </button>
+        </div>
+        <input type="file" id="importBackupInput" accept="application/json,.json" class="hidden" />
+
+        <button type="button" id="hardRefreshButton" class="btn-utility">
+          Оновити кеш застосунку (PWA)
+        </button>
+
+        <button type="button" id="resetDataButton" class="btn-danger-outline">
+          Скинути всю історію та статистику
+        </button>
+      </div>
     </dialog>
 
-    <!-- Urge Surfing Modal (Breathing) -->
-    <dialog id="breatheModal" class="fixed inset-0 h-screen w-screen max-w-none max-h-none rounded-none border-none m-0 bg-black/98 backdrop:backdrop-blur-3xl transition-all text-white z-50 dialog-fullscreen">
-        <div class="flex flex-col items-center justify-center h-full w-full max-w-md mx-auto p-6 text-center">
-            <h3 class="text-3xl font-display font-black text-cyan-400 mb-2">Перетерпи бажання</h3>
-            <p class="text-slate-400 text-sm mb-16">Синхронізуй дихання з колом</p>
-            
-            <div class="relative w-56 h-56 flex items-center justify-center mb-16">
-                <div id="breatheCircle" class="w-48 h-48 rounded-full bg-gradient-to-tr from-cyan-500/10 to-blue-500/20 border-4 border-cyan-400 flex items-center justify-center shadow-[0_0_50px_rgba(6,182,212,0.25)] transition-all duration-1000">
-                    <span id="breatheText" class="text-2xl font-black text-cyan-300 uppercase tracking-widest drop-shadow-md">Вдих</span>
-                </div>
-                <div class="absolute inset-0 rounded-full border border-cyan-500/10 scale-[1.3] animate-ping opacity-25"></div>
-            </div>
-
-            <div class="text-4xl font-mono font-bold text-white mb-12" id="breatheTimer">60</div>
-
-            <button id="closeBreatheBtn" class="w-full max-w-xs bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 font-bold py-4 px-4 rounded-2xl transition active:scale-95">
-                Я впорався
-            </button>
-        </div>
+    <!-- Native Confirmation Modal -->
+    <dialog id="confirmModal" class="modal-sheet confirm-sheet" aria-labelledby="confirmTitle">
+      <h3 id="confirmTitle" class="modal-title">Підтвердження дії</h3>
+      <p id="modalText" class="confirm-desc">Цю дію неможливо скасувати.</p>
+      <div class="confirm-actions">
+        <button type="button" id="confirmNo" class="btn-utility">Скасувати</button>
+        <button type="button" id="confirmYes" class="btn-confirm-yes">Підтвердити</button>
+      </div>
     </dialog>
 
-    <script type="module" src="js/app.js"></script>
+    <!-- Urge Surfing Modal (Phase-Locked Breathing) -->
+    <dialog id="breatheModal" class="breathe-dialog" aria-labelledby="breatheHeading">
+      <div class="breathe-inner">
+        <h3 id="breatheHeading" class="breathe-heading">Перетерпи хвилю тяги</h3>
+        <p class="breathe-sub">Гостра фаза нікотинового імпульсу минає за 60 секунд</p>
 
-    <!-- Robust Service Worker Registration -->
-    <script>
-        const FORCE_FIREBASE_RESET = false;
-        const SW_VERSION = 'v2.4.0';
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => {
-                    console.log('[SW] Registered version:', SW_VERSION);
-                    
-                    // Periodic check for updates
-                    setInterval(() => reg.update(), 60000); 
-
-                    reg.addEventListener('updatefound', () => {
-                        const newWorker = reg.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('[SW] New version found. Prompting user.');
-                                showUpdateToast();
-                            }
-                        });
-                    });
-                });
-            });
-
-            // Force reload if new SW takes control
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    refreshing = true;
-                    console.log('[SW] Controller changed. Reloading...');
-                    window.location.reload();
-                }
-            });
-        }
-
-        function showUpdateToast() {
-            if (document.getElementById('updateToast')) return;
-            const toast = document.createElement('div');
-            toast.id = 'updateToast';
-            toast.className = 'fixed bottom-4 left-4 right-4 bg-emerald-500 text-white p-4 rounded-xl shadow-2xl z-[100] flex justify-between items-center border border-white/20 animate-bounce';
-            toast.innerHTML = `
-                <div class="flex items-center gap-3">
-                    <span class="text-2xl">🚀</span>
-                    <div>
-                        <div class="font-bold">Доступна нова версія!</div>
-                        <div class="text-[10px] opacity-80 font-mono">${SW_VERSION} ready</div>
-                    </div>
-                </div>
-                <button onclick="window.location.reload()" class="bg-white text-emerald-900 px-4 py-2 rounded-lg font-bold text-sm">ОНОВИТИ</button>
-            `;
-            document.body.appendChild(toast);
-        }
-    </script>
-    <!-- Undo Notification (Toast) -->
-    <div id="undoNotification" class="fixed bottom-24 left-4 right-4 z-50 transform translate-y-32 opacity-0 transition-all duration-500 pointer-events-none">
-        <div class="bg-slate-900/95 backdrop-blur-xl border border-cyan-500/30 p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-xs font-bold text-white">Вирішили скасувати?</p>
-                    <p class="text-[10px] text-slate-400" id="undoTimerText">У вас є 60 секунд</p>
-                </div>
-            </div>
-            <button id="undoActionBtn" class="bg-cyan-500 hover:bg-cyan-600 text-white text-[10px] font-black px-6 py-2.5 rounded-xl transition shadow-lg shadow-cyan-500/20 active:scale-95">
-                СКАСУВАТИ
-            </button>
+        <div class="breathe-stage">
+          <div class="breathe-ring-guide" aria-hidden="true"></div>
+          <div id="breatheCircle" class="breathe-circle">
+            <span id="breatheText" class="breathe-phase">Вдих</span>
+          </div>
         </div>
+
+        <div id="breatheTimer" class="breathe-countdown">60</div>
+
+        <button type="button" id="closeBreatheBtn" class="btn-utility" style="width: 100%; padding: 13px">
+          Тяга минула · Повернутись
+        </button>
+      </div>
+    </dialog>
+
+    <!-- Undo Toast -->
+    <div id="undoNotification" class="floating-toast toast-elevated" role="status" aria-live="polite">
+      <div class="toast-info">
+        <span class="toast-title">Стік зафіксовано</span>
+        <span id="undoTimerText" class="toast-sub">Скасувати можна ще 60 с</span>
+      </div>
+      <button type="button" id="undoActionBtn" class="toast-btn">Скасувати</button>
     </div>
 
     <!-- PWA Install Banner -->
-    <div id="pwaInstallBanner" class="fixed bottom-4 left-4 right-4 bg-slate-900/95 backdrop-blur-xl border border-cyan-500/30 p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto transform translate-y-32 opacity-0 transition-all duration-500 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-            </div>
-            <div class="text-left">
-                <p class="text-xs font-bold text-white">Встановити додаток</p>
-                <p class="text-[10px] text-slate-400">Швидкий доступ на головному екрані</p>
-            </div>
-        </div>
-        <button id="pwaInstallBtn" class="bg-cyan-500 hover:bg-cyan-600 text-white text-[10px] font-black px-6 py-2.5 rounded-xl transition shadow-lg shadow-cyan-500/20 active:scale-95">
-            ВСТАНОВИТИ
-        </button>
+    <div id="pwaInstallBanner" class="floating-toast" role="region" aria-label="Встановлення застосунку">
+      <div class="toast-info">
+        <span class="toast-title">Встановити IQOSFree на екран</span>
+        <span class="toast-sub">Миттєвий запуск офлайн без браузера</span>
+      </div>
+      <button type="button" id="pwaInstallBtn" class="toast-btn">Встановити</button>
     </div>
 
-</body>
+    <!-- Status / Update Toast -->
+    <div id="statusToast" class="floating-toast" role="status" aria-live="polite">
+      <div class="toast-info">
+        <span id="statusToastTitle" class="toast-title">Готово</span>
+        <span id="statusToastSub" class="toast-sub"></span>
+      </div>
+      <button type="button" id="statusToastAction" class="toast-btn hidden">Оновити</button>
+    </div>
+  </body>
 </html>

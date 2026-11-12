@@ -1,121 +1,95 @@
-/**
- * Returns the correct Ukrainian plural form for the word "стік" based on the number.
- * @param {number} number The number of sticks.
- * @returns {string} The plural form ("стік", "стіки", or "стіків").
- */
+function pluralizeUk(value, one, few, many) {
+  const n = Math.abs(Math.trunc(Number(value) || 0));
+  const lastTwo = n % 100;
+  const lastOne = n % 10;
+
+  if (lastTwo >= 11 && lastTwo <= 14) return many;
+  if (lastOne === 1) return one;
+  if (lastOne >= 2 && lastOne <= 4) return few;
+  return many;
+}
+
 export function getStickPluralForm(number) {
-  const lastDigit = number % 10;
-  const lastTwoDigits = number % 100;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return "стіків";
-  }
-  if (lastDigit === 1) {
-    return "стік";
-  }
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return "стіки";
-  }
-  return "стіків";
+  return pluralizeUk(number, "стік", "стіки", "стіків");
 }
 
-/**
- * Returns the correct Ukrainian plural form for the word "година" based on the number.
- * @param {number} number The number of hours.
- * @returns {string} The plural form ("година", "години", or "годин").
- */
 export function getHourPluralForm(number) {
-  const lastDigit = number % 10;
-  const lastTwoDigits = number % 100;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return "годин";
-  }
-  if (lastDigit === 1) {
-    return "година";
-  }
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return "години";
-  }
-  return "годин";
+  return pluralizeUk(number, "година", "години", "годин");
 }
 
-/**
- * Returns the correct Ukrainian plural form for the word "хвилина" based on the number.
- * @param {number} totalMinutes The total number of minutes.
- * @returns {string} The plural form ("хвилина", "хвилини", or "хвилин").
- */
 export function getMinutePluralForm(number) {
-  const lastDigit = number % 10;
-  const lastTwoDigits = number % 100;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return "хвилин";
-  }
-  if (lastDigit === 1) {
-    return "хвилина";
-  }
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return "хвилини";
-  }
-  return "хвилин";
+  return pluralizeUk(number, "хвилина", "хвилини", "хвилин");
 }
 
-/**
- * Returns the correct Ukrainian plural form for the word "день" based on the number.
- * @param {number} number The number of days.
- * @returns {string} The plural form ("день", "дні", or "днів").
- */
 export function getDayPluralForm(number) {
-  const lastDigit = number % 10;
-  const lastTwoDigits = number % 100;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return "днів";
-  }
-  if (lastDigit === 1) {
-    return "день";
-  }
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return "дні";
-  }
-  return "днів";
+  return pluralizeUk(number, "день", "дні", "днів");
 }
 
-/**
- * Formats total hours into a readable string with correct pluralization for days and hours.
- * @param {number} totalHours The total number of hours.
- * @returns {string} Formatted string (e.g., "1 день 2 години", "5 годин").
- */
 export function formatHoursToReadable(totalHours) {
-  if (totalHours < 24) {
-    return `${totalHours} ${getHourPluralForm(totalHours)}`;
-  } else {
-    const days = Math.floor(totalHours / 24);
-    const remainingHours = totalHours % 24;
-    let result = `${days} ${getDayPluralForm(days)}`;
-    if (remainingHours > 0) {
-      result += ` ${remainingHours} ${getHourPluralForm(remainingHours)}`;
-    }
-    return result;
+  const hoursInt = Math.max(0, Math.floor(Number(totalHours) || 0));
+  if (hoursInt < 24) {
+    return `${hoursInt} ${getHourPluralForm(hoursInt)}`;
   }
+  const days = Math.floor(hoursInt / 24);
+  const remainingHours = hoursInt % 24;
+  let result = `${days} ${getDayPluralForm(days)}`;
+  if (remainingHours > 0) {
+    result += ` ${remainingHours} ${getHourPluralForm(remainingHours)}`;
+  }
+  return result;
 }
 
-/**
- * Formats total minutes into a readable string with correct pluralization for hours and minutes.
- * @param {number} totalMinutes The total number of minutes.
- * @returns {string} Formatted string (e.g., "1 година 2 хвилини", "5 хвилин").
- */
 export function formatMinutesToReadable(totalMinutes) {
-  if (totalMinutes < 60) {
-    return `${totalMinutes} ${getMinutePluralForm(totalMinutes)}`;
-  } else {
-    const hours = Math.floor(totalMinutes / 60);
-    const remainingMinutes = totalMinutes % 60;
+  const minsInt = Math.max(0, Math.floor(Number(totalMinutes) || 0));
+  if (minsInt < 60) {
+    return `${minsInt} ${getMinutePluralForm(minsInt)}`;
+  }
+  if (minsInt < 1440) {
+    const hours = Math.floor(minsInt / 60);
+    const remainingMinutes = minsInt % 60;
     let result = `${hours} ${getHourPluralForm(hours)}`;
     if (remainingMinutes > 0) {
-      result += ` ${remainingMinutes} ${getMinutePluralForm(remainingMinutes)}`;
+      result += ` ${remainingMinutes} хв`;
     }
     return result;
   }
+  const days = Math.floor(minsInt / 1440);
+  const hours = Math.floor((minsInt % 1440) / 60);
+  let result = `${days} ${getDayPluralForm(days)}`;
+  if (hours > 0) {
+    result += ` ${hours} год`;
+  }
+  return result;
+}
+
+export function formatCountdownMs(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${mm}:${ss}`;
+  }
+  return `${mm}:${ss}`;
+}
+
+export function getCurrencySymbol(currency = "UAH") {
+  if (currency === "USD") return "$";
+  if (currency === "EUR") return "€";
+  return "₴";
+}
+
+export function formatMoney(amount, currency = "UAH", signed = false) {
+  const numeric = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+  const absVal = Math.abs(numeric);
+  const signPrefix = signed ? (numeric < -0.004 ? "−" : "+") : numeric < -0.004 ? "−" : "";
+  const formatted = absVal.toFixed(2);
+
+  if (currency === "USD") return `${signPrefix}$${formatted}`;
+  if (currency === "EUR") return `${signPrefix}€${formatted}`;
+  return `${signPrefix}${formatted} ₴`;
 }

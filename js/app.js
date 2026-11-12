@@ -1,1488 +1,1027 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, linkWithPopup, signOut, signInWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import {
+  getStickPluralForm,
+  formatHoursToReadable,
+  formatMinutesToReadable,
+  formatCountdownMs,
+  formatMoney,
+} from "./utils.js";
+import { renderSmokeChart } from "./charts.js";
 
-import { firebaseConfig, appId } from './firebase-config.js';
-import { getStickPluralForm, formatHoursToReadable, formatMinutesToReadable } from './utils.js';
-import { renderSmokeChart, destroyChart } from './charts.js';
+// --- Bio-Core 3.0 Constants ---
+const REGEN_PER_HOUR = 10;
+const DAMAGE_REGULAR = 5;
+const DAMAGE_EMERGENCY = 10;
+const PENALTY_REGULAR_MS = 6 * 60 * 60 * 1000;
+const PENALTY_EMERGENCY_MS = 12 * 60 * 60 * 1000;
 
-// --- BIO-CORE 2.0 CONSTANTS (Original User Request) ---
-const REGEN_PER_HOUR = 10;       // +10% per hour (full recovery in 10 hours)
-const DAMAGE_REGULAR = 5;        // -5% per regular stick
-const DAMAGE_EMERGENCY = 10;     // -10% per emergency stick
-const PENALTY_REGULAR_MS = 1000 * 60 * 60 * 6;   // 6h XP penalty
-const PENALTY_EMERGENCY_MS = 1000 * 60 * 60 * 12; // 12h XP penalty
+const STORAGE_KEY = "iqosfree_data_v4";
+const BACKUP_KEY = "iqosfree_data_v4_backup";
+const LEGACY_KEYS = [
+  "iqosfree_data_1:53877466841:web:cde808b8a76596b19740c8",
+  "iqosfree_data_quit-smoking-app-default",
+];
 
-// --- APPLICATION STATE ---
-let app;
-let db;
-let auth;
+const DETOX_STAGES = [
+  { id: "20m", ms: 20 * 60 * 1000 },
+  { id: "8h", ms: 8 * 60 * 60 * 1000 },
+  { id: "24h", ms: 24 * 60 * 60 * 1000 },
+  { id: "48h", ms: 48 * 60 * 60 * 1000 },
+];
 
-const LOCAL_STORAGE_KEY = `iqosfree_data_${appId}`;
-
-const getDefaultAppData = () => ({
+function getDefaultAppData() {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return {
     lastSmokeTime: null,
     smokeHistory: [],
     settings: {
-        packPrice: 5,
-        packSize: 20,
-        oldHabit: 20, 
-        smokeIntervalMinutes: 60, 
-        desiredDailySticks: 10 
+      currency: "UAH",
+      packPrice: 130,
+      packSize: 20,
+      oldHabit: 20,
+      smokeIntervalMinutes: 60,
+      desiredDailySticks: 10,
     },
     longestSmokeFreeStreakHours: 0,
-    appStartDate: new Date().setHours(0,0,0,0),
+    appStartDate: startOfToday.getTime(),
     settingsUpdatedAt: Date.now(),
-    updatedAt: Date.now()
-});
+    updatedAt: Date.now(),
+  };
+}
 
-function loadLocalData() {
-    const local = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (local) {
-        try {
-            return JSON.parse(local);
-        } catch (e) {
-            console.error("Error parsing local data", e);
-        }
-    }
+function sanitizeHistory(rawHistory) {
+  if (!Array.isArray(rawHistory)) return [];
+  const seen = new Set();
+  const cleaned = [];
+
+  for (const item of rawHistory) {
+    const ts = typeof item === "number" ? item : Number(item && item.timestamp);
+    if (!Number.isFinite(ts) || ts <= 0) continue;
+    if (seen.has(ts)) continue;
+    seen.add(ts);
+    const type = item && item.type === "emergency" ? "emergency" : "regular";
+    cleaned.push({ timestamp: ts, type });
+  }
+
+  cleaned.sort((a, b) => a.timestamp - b.timestamp);
+  return cleaned;
+}
+
+function sanitizeAppData(raw) {
+  const defaults = getDefaultAppData();
+  if (!raw || typeof raw !== "object") return defaults;
+
+  const history = sanitizeHistory(raw.smokeHistory);
+  const rawSettings = raw.settings && typeof raw.settings === "object" ? raw.settings : {};
+
+  const packPrice = Number.isFinite(Number(rawSettings.packPrice)) && Number(rawSettings.packPrice) >= 0
+    ? Number(rawSettings.packPrice)
+    : defaults.settings.packPrice;
+
+  // Preserve currency choice; for migrated legacy configs without currency, infer USD if packPrice <= 25
+  let currency = rawSettings.currency;
+  if (!["UAH", "USD", "EUR"].includes(currency)) {
+    currency = rawSettings.packPrice !== undefined && packPrice > 0 && packPrice <= 25 ? "USD" : "UAH";
+  }
+
+  const packSize = Number.isFinite(Number(rawSettings.packSize)) && Number(rawSettings.packSize) >= 1
+    ? Math.round(Number(rawSettings.packSize))
+    : defaults.settings.packSize;
+
+  const oldHabit = Number.isFinite(Number(rawSettings.oldHabit)) && Number(rawSettings.oldHabit) >= 0
+    ? Number(rawSettings.oldHabit)
+    : defaults.settings.oldHabit;
+
+  const desiredDailySticks =
+    Number.isFinite(Number(rawSettings.desiredDailySticks)) && Number(rawSettings.desiredDailySticks) >= 0
+      ? Number(rawSettings.desiredDailySticks)
+      : defaults.settings.desiredDailySticks;
+
+  const smokeIntervalMinutes =
+    Number.isFinite(Number(rawSettings.smokeIntervalMinutes)) && Number(rawSettings.smokeIntervalMinutes) >= 1
+      ? Math.round(Number(rawSettings.smokeIntervalMinutes))
+      : defaults.settings.smokeIntervalMinutes;
+
+  const earliestSmoke = history.length > 0 ? history[0].timestamp : null;
+  let appStartDate = Number(raw.appStartDate);
+  if (!Number.isFinite(appStartDate) || appStartDate <= 0) {
+    appStartDate = earliestSmoke || defaults.appStartDate;
+  } else if (earliestSmoke && earliestSmoke < appStartDate) {
+    appStartDate = earliestSmoke;
+  }
+
+  const lastSmokeTime = history.length > 0 ? history[history.length - 1].timestamp : null;
+  const longestSmokeFreeStreakHours = Math.max(0, Math.floor(Number(raw.longestSmokeFreeStreakHours) || 0));
+
+  return {
+    lastSmokeTime,
+    smokeHistory: history,
+    settings: {
+      currency,
+      packPrice,
+      packSize,
+      oldHabit,
+      smokeIntervalMinutes,
+      desiredDailySticks,
+    },
+    longestSmokeFreeStreakHours,
+    appStartDate,
+    settingsUpdatedAt: Number(raw.settingsUpdatedAt) || Date.now(),
+    updatedAt: Number(raw.updatedAt) || Date.now(),
+  };
+}
+
+function readJsonKey(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
     return null;
+  }
 }
 
-function saveLocalData(data, updateTimestamp = true) {
-    if (!data) return;
-    if (updateTimestamp) data.updatedAt = Date.now();
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+function loadInitialState() {
+  const current = readJsonKey(STORAGE_KEY);
+  if (current) return sanitizeAppData(current);
+
+  // Migrate seamlessly from legacy storage keys if present
+  for (const legacyKey of LEGACY_KEYS) {
+    const legacy = readJsonKey(legacyKey) || readJsonKey(`${legacyKey}_backup`);
+    if (legacy) {
+      const migrated = sanitizeAppData(legacy);
+      persistState(migrated);
+      return migrated;
+    }
+  }
+
+  const backup = readJsonKey(BACKUP_KEY);
+  if (backup) return sanitizeAppData(backup);
+
+  return getDefaultAppData();
 }
 
-// Backup system to prevent data loss
-const BACKUP_KEY = `${LOCAL_STORAGE_KEY}_backup`;
-
-function saveBackup(data) {
-    if (!data || !data.smokeHistory || data.smokeHistory.length === 0) return;
-    // Only save backup if data has meaningful content
-    localStorage.setItem(BACKUP_KEY, JSON.stringify({
-        ...data,
-        backupTime: Date.now()
-    }));
-    console.log('[Backup] Data backed up successfully');
+function persistState(state, bumpTimestamp = true) {
+  if (!state) return;
+  if (bumpTimestamp) state.updatedAt = Date.now();
+  try {
+    const serialized = JSON.stringify(state);
+    localStorage.setItem(STORAGE_KEY, serialized);
+    if (state.smokeHistory.length > 0) {
+      localStorage.setItem(BACKUP_KEY, serialized);
+    }
+  } catch (err) {
+    console.error("[Storage] Save failed:", err);
+  }
 }
 
-function loadBackup() {
-    const backup = localStorage.getItem(BACKUP_KEY);
-    if (backup) {
-        try {
-            return JSON.parse(backup);
-        } catch (e) {
-            console.error('[Backup] Error parsing backup', e);
-        }
-    }
-    return null;
+// --- Runtime State ---
+let appData = loadInitialState();
+let currentChartPeriod = "day";
+let currentChartMode = "sticks";
+
+let tickIntervalId = null;
+let undoTimeoutId = null;
+let undoIntervalId = null;
+let toastTimeoutId = null;
+let breatheRafId = null;
+let breatheStartMs = 0;
+
+let lastRenderedStage = -1;
+let lastRenderedHealth = -1;
+
+// --- DOM References ---
+const dom = {};
+
+function cacheDom() {
+  dom.storageStatusText = document.getElementById("storageStatusText");
+  dom.openSettingsButton = document.getElementById("openSettingsButton");
+  dom.closeSettingsButton = document.getElementById("closeSettingsButton");
+  dom.saveSettingsButton = document.getElementById("saveSettingsButton");
+  dom.settingsModal = document.getElementById("settingsModal");
+
+  dom.currencySelect = document.getElementById("currencySelect");
+  dom.packPrice = document.getElementById("packPrice");
+  dom.packSize = document.getElementById("packSize");
+  dom.oldHabit = document.getElementById("oldHabit");
+  dom.oldHabitMoney = document.getElementById("oldHabitMoney");
+  dom.desiredDailySticks = document.getElementById("desiredDailySticks");
+  dom.desiredDailySticksMoney = document.getElementById("desiredDailySticksMoney");
+  dom.smokeIntervalMinutes = document.getElementById("smokeIntervalMinutes");
+
+  dom.exportBackupButton = document.getElementById("exportBackupButton");
+  dom.importBackupButton = document.getElementById("importBackupButton");
+  dom.importBackupInput = document.getElementById("importBackupInput");
+  dom.hardRefreshButton = document.getElementById("hardRefreshButton");
+  dom.resetDataButton = document.getElementById("resetDataButton");
+
+  dom.treeContainer = document.getElementById("treeContainer");
+  dom.toxicCloud = document.getElementById("toxicCloud");
+  dom.treeImage = document.getElementById("treeImage");
+  dom.growthStage = document.getElementById("growthStage");
+  dom.healthValue = document.getElementById("healthValue");
+
+  dom.timer = document.getElementById("timer");
+  dom.statusMessage = document.getElementById("statusMessage");
+
+  dom.sosButton = document.getElementById("sosButton");
+  dom.smokeButton = document.getElementById("smokeButton");
+  dom.smokeButtonLabel = document.getElementById("smokeButtonLabel");
+  dom.smokeButtonSub = document.getElementById("smokeButtonSub");
+  dom.emergencySmokeButton = document.getElementById("emergencySmokeButton");
+
+  dom.smokedTodayValue = document.getElementById("smokedTodayValue");
+  dom.smokedTodayPlanned = document.getElementById("smokedTodayPlanned");
+  dom.spentTodayValue = document.getElementById("spentTodayValue");
+  dom.spentTodayPlanned = document.getElementById("spentTodayPlanned");
+  dom.smokeFreeStreak = document.getElementById("smokeFreeStreak");
+  dom.longestSmokeFreeStreak = document.getElementById("longestSmokeFreeStreak");
+  dom.financialBalanceLabel = document.getElementById("financialBalanceLabel");
+  dom.financialBalanceValue = document.getElementById("financialBalanceValue");
+  dom.allTimeSavingsSub = document.getElementById("allTimeSavingsSub");
+
+  dom.detoxEls = DETOX_STAGES.map((stage) => ({
+    ...stage,
+    valEl: document.getElementById(`detoxVal-${stage.id}`),
+    barEl: document.getElementById(`detoxBar-${stage.id}`),
+  }));
+
+  dom.modeBtns = document.querySelectorAll(".mode-btn");
+  dom.statsTabs = document.querySelectorAll(".stats-tab");
+  dom.totalSmokesAllTime = document.getElementById("totalSmokesAllTime");
+  dom.avgSmokesPerDay = document.getElementById("avgSmokesPerDay");
+  dom.smokeChart = document.getElementById("smokeChart");
+
+  dom.insightsTitle = document.getElementById("insightsTitle");
+  dom.peakHourValue = document.getElementById("peakHourValue");
+  dom.activityHeatmap = document.getElementById("activityHeatmap");
+  dom.heatmapLabels = document.getElementById("heatmapLabels");
+
+  dom.confirmModal = document.getElementById("confirmModal");
+  dom.confirmTitle = document.getElementById("confirmTitle");
+  dom.modalText = document.getElementById("modalText");
+  dom.confirmNo = document.getElementById("confirmNo");
+  dom.confirmYes = document.getElementById("confirmYes");
+
+  dom.breatheModal = document.getElementById("breatheModal");
+  dom.breatheCircle = document.getElementById("breatheCircle");
+  dom.breatheText = document.getElementById("breatheText");
+  dom.breatheTimer = document.getElementById("breatheTimer");
+  dom.closeBreatheBtn = document.getElementById("closeBreatheBtn");
+
+  dom.undoNotification = document.getElementById("undoNotification");
+  dom.undoTimerText = document.getElementById("undoTimerText");
+  dom.undoActionBtn = document.getElementById("undoActionBtn");
+
+  dom.pwaInstallBanner = document.getElementById("pwaInstallBanner");
+  dom.pwaInstallBtn = document.getElementById("pwaInstallBtn");
+
+  dom.statusToast = document.getElementById("statusToast");
+  dom.statusToastTitle = document.getElementById("statusToastTitle");
+  dom.statusToastSub = document.getElementById("statusToastSub");
+  dom.statusToastAction = document.getElementById("statusToastAction");
 }
 
-function shouldRestoreFromBackup(currentData, backupData) {
-    if (!backupData) return false;
-    if (!currentData || !currentData.smokeHistory) return true;
-    
-    // Restore if backup has more history AND is not too old (less than 7 days)
-    const backupAge = Date.now() - (backupData.backupTime || 0);
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    
-    return backupData.smokeHistory.length > currentData.smokeHistory.length && backupAge < sevenDays;
+// --- Bio-Core 3.0 Calculation (History already kept sorted) ---
+function calculateTreeState(now) {
+  const appStart = appData.appStartDate || now - 86400000;
+  let health = 100;
+  let lastT = appStart;
+  let totalPenalty = 0;
+
+  for (const record of appData.smokeHistory) {
+    totalPenalty += record.type === "emergency" ? PENALTY_EMERGENCY_MS : PENALTY_REGULAR_MS;
+    if (record.timestamp < appStart) continue;
+
+    const elapsedHours = (record.timestamp - lastT) / 3600000;
+    if (elapsedHours > 0) {
+      health = Math.min(100, health + elapsedHours * REGEN_PER_HOUR);
+    }
+
+    const damage = record.type === "emergency" ? DAMAGE_EMERGENCY : DAMAGE_REGULAR;
+    health = Math.max(0, health - damage);
+    lastT = record.timestamp;
+  }
+
+  const finalElapsedHours = (now - lastT) / 3600000;
+  if (finalElapsedHours > 0) {
+    health = Math.min(100, health + finalElapsedHours * REGEN_PER_HOUR);
+  }
+
+  const totalPossibleTime = Math.max(0, now - appStart);
+  const evolutionMs = Math.max(0, totalPossibleTime - totalPenalty);
+
+  return {
+    health: Math.round(health),
+    evolutionMs,
+  };
 }
 
-let appData = loadLocalData() || getDefaultAppData();
-
-let eventListenersAttached = false;
-let isInitialAuthCheckComplete = false;
-let lastFirebaseSyncTime = 0;
-const FIREBASE_SYNC_INTERVAL = 10000; // 10 секунд — швидша крос-девайс синхронізація
-let isLocalOnlyMode = false;
-let userId = null;
-let dataRef = null;
-let unsubscribeSnapshot = null; // Real-time listener cleanup
-
-// --- DOM ELEMENTS ---
-// (Initialized in DOMContentLoaded)
-let loader, appContainer, mainView, settingsView, timerEl, statusMessageEl, accountBadge;
-let smokeButton, emergencySmokeButton, openSettingsButton, closeSettingsButton, saveSettingsButton, resetDataButton, forceSyncButton, deepResetButton;
-let smokedTodayValueEl, smokedTodayPlannedEl, spentTodayValueEl, spentTodayPlannedEl;
-let smokeFreeStreakEl, longestSmokeFreeStreakEl;
-let balanceCardEl, financialBalanceLabelEl, financialBalanceValueEl, balanceIconEl;
-let signInGoogleButton, signOutButton, userStatusDisplay;
-let sosButton, breatheModal, breatheCircle, breatheText, breatheTimer, closeBreatheBtn;
-let packPriceInput, packSizeInput, oldHabitInput, smokeIntervalMinutesInput, oldHabitMoneyEl, desiredDailySticksInput, desiredDailySticksMoneyEl;
-let dailySmokingChartSection, dailySmokeChartCanvas;
-let statisticsSection, smokeChartCanvas;
-let totalSmokesAllTimeEl, avgSmokesPerDayEl;
-let statsTabs, statsModeBtns;
-let treeContainerEl, toxicCloudEl, healthValueEl, growthStageEl; // New Life Tree Elements 2025
-let lastSettingsSyncTimeEl, hardRefreshButton;
-let undoNotificationEl, undoActionBtn, undoTimerTextEl;
-let undoTimeout = null, undoInterval = null;
-// DOM Elements
-const syncIndicator = document.getElementById('syncIndicator');
-
-function updateSyncStatus(status) {
-    if (!syncIndicator) return;
-    syncIndicator.classList.remove('bg-slate-700', 'bg-emerald-500', 'bg-red-500', 'animate-pulse');
-    if (status === 'syncing') {
-        syncIndicator.classList.add('bg-slate-700', 'animate-pulse');
-    } else if (status === 'online') {
-        syncIndicator.classList.add('bg-emerald-500');
-    } else if (status === 'error') {
-        syncIndicator.classList.add('bg-red-500');
-    }
+function getStageMeta(evolutionMs) {
+  const days = evolutionMs / 86400000;
+  if (days >= 14) return { stage: 5, title: "Міфічний дуб" };
+  if (days >= 7) return { stage: 4, title: "Велике дерево" };
+  if (days >= 3) return { stage: 3, title: "Середнє дерево" };
+  if (days >= 1) return { stage: 2, title: "Саджанець" };
+  return { stage: 1, title: "Паросток" };
 }
 
-function applyLocalOnlyUiState() {
-    if (userStatusDisplay) {
-        userStatusDisplay.textContent = "Локальний режим (без авторизації)";
+// --- Lightweight 1 Hz Realtime Tick (Zero Canvas/Heatmap Churn) ---
+function tickRealtimeUI() {
+  const now = Date.now();
+  const intervalMs = appData.settings.smokeIntervalMinutes * 60 * 1000;
+  const elapsedSinceLast = appData.lastSmokeTime ? Math.max(0, now - appData.lastSmokeTime) : intervalMs;
+  const remainingMs = intervalMs - elapsedSinceLast;
+
+  if (remainingMs > 0) {
+    const formatted = formatCountdownMs(remainingMs);
+    dom.timer.textContent = formatted;
+    dom.timer.classList.add("is-locked");
+    dom.timer.classList.remove("is-open");
+    dom.statusMessage.textContent = "До наступного вікна за графіком";
+    dom.smokeButton.disabled = true;
+    dom.smokeButtonLabel.textContent = `Закрито · ${formatted}`;
+  } else {
+    const cleanMinutes = appData.lastSmokeTime
+      ? Math.floor((now - appData.lastSmokeTime) / 60000)
+      : Math.floor((now - appData.appStartDate) / 60000);
+    dom.timer.textContent = formatCountdownMs(
+      appData.lastSmokeTime ? now - appData.lastSmokeTime : now - appData.appStartDate
+    );
+    dom.timer.classList.remove("is-locked");
+    dom.timer.classList.add("is-open");
+    dom.statusMessage.textContent =
+      cleanMinutes >= 60 ? "Чистий час (вікно відкрите)" : "Пауза витримана · вікно відкрите";
+    dom.smokeButton.disabled = false;
+    dom.smokeButtonLabel.textContent = "Зафіксувати стік";
+  }
+
+  // Streak & Record
+  const streakMs = appData.lastSmokeTime ? Math.max(0, now - appData.lastSmokeTime) : Math.max(0, now - appData.appStartDate);
+  const streakMinutes = Math.floor(streakMs / 60000);
+  const streakHours = Math.floor(streakMinutes / 60);
+
+  if (streakHours > appData.longestSmokeFreeStreakHours) {
+    appData.longestSmokeFreeStreakHours = streakHours;
+    persistState(appData, false);
+  }
+
+  dom.smokeFreeStreak.textContent = formatMinutesToReadable(streakMinutes);
+  dom.longestSmokeFreeStreak.textContent = formatHoursToReadable(appData.longestSmokeFreeStreakHours);
+
+  // Detox progress bars
+  const detoxElapsed = appData.lastSmokeTime ? Math.max(0, now - appData.lastSmokeTime) : 48 * 3600000;
+  for (const item of dom.detoxEls) {
+    const pct = Math.min(100, Math.floor((detoxElapsed / item.ms) * 100));
+    const pctText = `${pct}%`;
+    if (item.valEl.textContent !== pctText) {
+      item.valEl.textContent = pctText;
+      item.barEl.style.width = pctText;
+      item.valEl.classList.toggle("is-complete", pct === 100);
+      item.barEl.classList.toggle("is-complete", pct === 100);
     }
-    if (accountBadge) {
-        accountBadge.textContent = "LOCAL-ONLY";
-        accountBadge.classList.remove('hidden');
-        accountBadge.className = "text-[8px] px-1.5 py-0.5 rounded font-bold inline-block bg-amber-500/20 text-amber-500";
+  }
+
+  // Tree state (DOM touched ONLY when integer health or stage changes)
+  const { health, evolutionMs } = calculateTreeState(now);
+  const { stage, title } = getStageMeta(evolutionMs);
+
+  if (stage !== lastRenderedStage || health !== lastRenderedHealth) {
+    lastRenderedStage = stage;
+    lastRenderedHealth = health;
+
+    const targetSrc = `assets/tree_${stage}.webp`;
+    if (dom.treeImage.getAttribute("src") !== targetSrc) {
+      dom.treeImage.setAttribute("src", targetSrc);
     }
-    if (signInGoogleButton) {
-        signInGoogleButton.classList.add('hidden');
-        signInGoogleButton.disabled = true;
-    }
-    if (signOutButton) {
-        signOutButton.classList.add('hidden');
-    }
-    if (forceSyncButton) {
-        forceSyncButton.disabled = true;
-        forceSyncButton.classList.add('opacity-60', 'cursor-not-allowed');
-        forceSyncButton.title = "Firebase недоступний: локальний режим";
-    }
-    updateSyncStatus('error');
+
+    const healthLevel = Math.max(1, Math.min(10, Math.ceil(health / 10) || 1));
+    dom.treeImage.className = `tree-lvl-${healthLevel}${stage === 5 ? " tree-stage-5" : ""}`;
+
+    dom.growthStage.textContent = `Стадія ${stage}/5 · ${title}`;
+    dom.healthValue.textContent = `Здоров'я: ${health}%`;
+
+    dom.healthValue.classList.remove("hp-good", "hp-warn", "hp-bad");
+    if (health > 70) dom.healthValue.classList.add("hp-good");
+    else if (health > 30) dom.healthValue.classList.add("hp-warn");
+    else dom.healthValue.classList.add("hp-bad");
+  }
 }
 
-async function switchToLocalOnlyMode(reason, error = null) {
-    if (isLocalOnlyMode) return;
-    isLocalOnlyMode = true;
-    console.warn(`[LocalOnly] ${reason}`, error || '');
+// --- Heavy Dashboard Render (Runs ONLY on Data / Tab Changes) ---
+function renderFullDashboard() {
+  const now = Date.now();
+  tickRealtimeUI();
 
-    if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
-    }
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const todayTs = startOfToday.getTime();
 
-    userId = null;
-    dataRef = null;
-    applyLocalOnlyUiState();
-    await loadData();
-}
-let insightsSection, peakHourValueEl, activityHeatmapEl, heatmapLabelsEl;
-let currentChartPeriod = 'day';
-let currentChartMode = 'sticks';
-let confirmModal, modalText, confirmYes, confirmNo;
+  const { currency, packPrice, packSize, oldHabit, desiredDailySticks } = appData.settings;
+  const pricePerStick = packSize > 0 ? packPrice / packSize : 0;
 
-let confirmCallback = null;
+  let smokedTodayCount = 0;
+  for (let i = appData.smokeHistory.length - 1; i >= 0; i--) {
+    if (appData.smokeHistory[i].timestamp >= todayTs) smokedTodayCount++;
+    else break;
+  }
 
-function showConfirm(text, onConfirm) {
-    console.log("[showConfirm] Opening dialog with text:", text);
-    modalText.textContent = text;
-    confirmCallback = onConfirm;
-    
-    if (typeof confirmModal.showModal === 'function') {
-        confirmModal.showModal();
-    } else {
-        confirmModal.setAttribute('open', '');
-    }
-}
+  dom.smokedTodayValue.textContent = `${smokedTodayCount} ${getStickPluralForm(smokedTodayCount)}`;
+  dom.smokedTodayPlanned.textContent = `Ліміт: ${desiredDailySticks} на день`;
 
-// Global listeners for confirm buttons once in DOMContentLoaded
-function setupConfirmModalListeners() {
-    confirmYes.onclick = () => {
-        console.log("[showConfirm] Confirmed");
-        if (confirmCallback) confirmCallback();
-        
-        if (typeof confirmModal.close === 'function') confirmModal.close();
-        else confirmModal.removeAttribute('open');
-        
-        confirmCallback = null;
-    };
-    confirmNo.onclick = () => {
-        console.log("[showConfirm] Cancelled");
-        
-        if (typeof confirmModal.close === 'function') confirmModal.close();
-        else confirmModal.removeAttribute('open');
-        
-        confirmCallback = null;
-    };
-}
+  const actualSpentToday = smokedTodayCount * pricePerStick;
+  const plannedSpentToday = desiredDailySticks * pricePerStick;
 
-// Expose handlers to window for inline onclick fallbacks
-window.handleResetData = handleResetData;
-window.handleDeepReset = handleDeepReset;
+  dom.spentTodayValue.textContent = formatMoney(actualSpentToday, currency);
+  dom.spentTodayPlanned.textContent = `План: ${formatMoney(plannedSpentToday, currency)}`;
+  dom.spentTodayValue.classList.toggle("val-bad", smokedTodayCount > desiredDailySticks);
+  dom.spentTodayValue.classList.toggle("val-good", smokedTodayCount <= desiredDailySticks);
 
-async function loadData() {
-    if (!userId) {
-        console.warn("[loadData] userId is null. Using local data.");
-        updateSettingsInputs(); 
-        if (!eventListenersAttached) attachEventListeners();
-        loader.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-        return;
-    }
+  const todayBalance = (desiredDailySticks - smokedTodayCount) * pricePerStick;
+  const overLimit = smokedTodayCount > desiredDailySticks;
 
-    // Cleanup previous listener if exists
-    if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
-    }
+  dom.financialBalanceLabel.textContent = overLimit ? "Перевитрата за сьогодні" : "Денний резерв ліміту";
+  dom.financialBalanceValue.textContent = formatMoney(todayBalance, currency, true);
+  dom.financialBalanceValue.classList.toggle("val-good", !overLimit);
+  dom.financialBalanceValue.classList.toggle("val-bad", overLimit);
 
-    // CRITICAL: Save backup BEFORE any sync operation
-    const currentLocalData = loadLocalData();
-    if (currentLocalData && currentLocalData.smokeHistory && currentLocalData.smokeHistory.length > 0) {
-        saveBackup(currentLocalData);
-    }
+  // All-time savings vs old habit
+  const daysActive = Math.max(1, (now - appData.appStartDate) / 86400000);
+  const expectedOldHabitSticks = daysActive * oldHabit;
+  const savedTotalMoney = (expectedOldHabitSticks - appData.smokeHistory.length) * pricePerStick;
+  dom.allTimeSavingsSub.textContent = `Від старої звички: ${formatMoney(savedTotalMoney, currency, true)}`;
 
-    console.log(`[loadData] Initializing real-time listener for userId: ${userId}`);
-    dataRef = doc(db, `artifacts/${appId}/users/${userId}/smokingData/data`);
+  // Global summary
+  const totalSmokes = appData.smokeHistory.length;
+  dom.totalSmokesAllTime.textContent = String(totalSmokes);
+  dom.avgSmokesPerDay.textContent = (totalSmokes / daysActive).toFixed(1);
 
-    // Use onSnapshot for REAL-TIME synchronization
-    unsubscribeSnapshot = onSnapshot(dataRef, async (docSnap) => {
-        updateSyncStatus('online');
-        let remoteData = null;
-        if (docSnap.exists()) {
-            remoteData = docSnap.data();
-            console.log("[loadData] Remote update received via onSnapshot");
-        }
+  dom.storageStatusText.textContent = `Локально · записів: ${totalSmokes}`;
 
-        const localData = loadLocalData();
-
-        // SMART MERGE: Separates Settings (latest wins) from History (additive wins)
-            if (remoteData && localData) {
-                const remoteUpdateTime = remoteData.updatedAt || 0;
-                const localUpdateTime = localData.updatedAt || 0;
-                
-                console.log(`[Sync] Check. Remote Update: ${new Date(remoteUpdateTime).toLocaleTimeString()} (${remoteUpdateTime})`);
-                console.log(`[Sync] Check. Local Update: ${new Date(localUpdateTime).toLocaleTimeString()} (${localUpdateTime})`);
-
-                // 1. SETTINGS: Trust the latest settings update specifically
-                const remoteSettingsTime = remoteData.settingsUpdatedAt || 0;
-                const localSettingsTime = localData.settingsUpdatedAt || 0;
-                
-                if (remoteSettingsTime > localSettingsTime) {
-                    console.log("[Sync] Remote settings are NEWER. Updating settings.");
-                    appData.settings = remoteData.settings || appData.settings;
-                    appData.settingsUpdatedAt = remoteSettingsTime;
-                    
-                    if (lastSettingsSyncTimeEl) {
-                        lastSettingsSyncTimeEl.textContent = new Date(remoteSettingsTime).toLocaleTimeString();
-                    }
-                }
-
-                // 2. STATE & MERGE: Only if remote update is strictly newer
-                if (remoteUpdateTime > localUpdateTime) {
-                    console.log("[Sync] Remote data is NEWER. Merging state...");
-                    if (remoteData.appStartDate !== undefined) appData.appStartDate = Number(remoteData.appStartDate);
-                    appData.updatedAt = remoteUpdateTime;
-                } else {
-                    console.log("[Sync] Local data is up-to-date or newer. Skipping state merge.");
-                }
-
-                // 3. RECORDS: Maximum wins
-                const oldRecord = appData.longestSmokeFreeStreakHours || 0;
-                appData.longestSmokeFreeStreakHours = Math.max(oldRecord, remoteData.longestSmokeFreeStreakHours || 0);
-                if (appData.longestSmokeFreeStreakHours > oldRecord) console.log("[Sync] New record updated from remote!");
-
-                // 4. HISTORY: Additive Merge
-                const localHist = (localData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
-                const remoteHist = (remoteData.smokeHistory || []).map(s => typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
-                
-                if (remoteHist.length === 0 && localHist.length > 0 && remoteUpdateTime > localUpdateTime + 5000) {
-                    console.log("[Sync] Remote Reset detected. Clearing local history.");
-                    appData.smokeHistory = [];
-                } else {
-                    const allSmokes = [...localHist, ...remoteHist];
-                    const seen = new Set();
-                    const unique = [];
-                    for (const s of allSmokes) {
-                        if (!seen.has(s.timestamp)) {
-                            seen.add(s.timestamp);
-                            unique.push(s);
-                        }
-                    }
-                    unique.sort((a, b) => a.timestamp - b.timestamp);
-                    if (unique.length !== appData.smokeHistory.length) {
-                        console.log(`[Sync] History merged. Count: ${appData.smokeHistory.length} -> ${unique.length}`);
-                    }
-                    appData.smokeHistory = unique;
-                }
-
-                appData.lastSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[appData.smokeHistory.length-1].timestamp : null;
-                saveLocalData(appData, false);
-                
-            } else if (remoteData) {
-            console.log("[loadData] Using remote data.");
-            appData = { ...getDefaultAppData(), ...remoteData };
-        } else if (localData) {
-            console.log("[loadData] Using local data and pushing to Firebase.");
-            appData = { ...getDefaultAppData(), ...localData };
-            await saveData(); 
-        } else {
-            console.log("[loadData] No data found. Using defaults.");
-            appData = getDefaultAppData();
-            await saveData(); 
-        }
-
-        // Sanitize & Migrations
-        appData.smokeHistory = (appData.smokeHistory || []).map(smoke => {
-            if (typeof smoke === 'number') return { timestamp: smoke, type: 'regular' };
-            return { timestamp: smoke.timestamp, type: smoke.type || 'regular' }; 
-        });
-
-        // Backup check
-        const backup = loadBackup();
-        if (shouldRestoreFromBackup(appData, backup)) {
-            console.warn('[loadData] Potential data loss in sync! Restoring from backup...');
-            appData = { ...getDefaultAppData(), ...backup };
-            delete appData.backupTime;
-            await saveData();
-        }
-
-        saveLocalData(appData);
-        // Only update inputs if the user is NOT currently editing them
-        if (settingsView.classList.contains('hidden')) {
-            updateSettingsInputs();
-        }
-        updateUI();
-        
-        // Handle Widget Actions (Once per initial load)
-        const urlParams = new URLSearchParams(window.location.search);
-        const action = urlParams.get('action');
-        if (action && !window.initialActionTriggered) {
-             console.log("[DeepLink] Action detected:", action);
-             window.initialActionTriggered = true;
-             // Clear param to avoid double action on refresh
-             window.history.replaceState({}, document.title, window.location.pathname);
-             setTimeout(() => {
-                if (action === 'smoke') handleSmoke('regular');
-                else if (action === 'emergency') handleSmoke('emergency');
-             }, 500); // Small delay to ensure UI is ready
-        }
-
-        if (!eventListenersAttached) attachEventListeners();
-        loader.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-    }, async (error) => {
-        console.error("[loadData] Firestore listener error:", error);
-        await switchToLocalOnlyMode("Firestore unavailable", error);
-    });
+  // Chart & Insights Heatmap
+  renderSmokeChart(dom.smokeChart, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
+  renderInsightsHeatmap(now);
 }
 
-async function saveData(updateTimestamp = false) {
-    if (updateTimestamp) {
-        appData.updatedAt = Date.now();
-        console.log(`[Sync] Manually bumping updatedAt: ${appData.updatedAt}`);
+function renderInsightsHeatmap(now) {
+  let buckets = [];
+  let axisLabels = [];
+  let peakText = "Недостатньо даних";
+
+  if (currentChartPeriod === "day") {
+    dom.insightsTitle.textContent = "Пікове вікно (останні 30 днів)";
+    buckets = new Array(24).fill(0);
+    axisLabels = ["00:00", "06:00", "12:00", "18:00", "23:59"];
+
+    const cutoff = now - 30 * 86400000;
+    for (const s of appData.smokeHistory) {
+      if (s.timestamp >= cutoff) {
+        buckets[new Date(s.timestamp).getHours()]++;
+      }
     }
-    saveLocalData(appData, false); 
-    if (!dataRef || !userId) return;
-    updateSyncStatus('syncing');
-    try {
-        await setDoc(dataRef, appData);
-        updateSyncStatus('online');
-        console.log("[Sync] Data pushed to Firestore.");
-    } catch (error) {
-        updateSyncStatus('error');
-        console.error("[Sync] Error pushing to Firestore: ", error);
+
+    let maxSum = 0;
+    let bestHour = 0;
+    for (let h = 0; h <= 21; h++) {
+      const sum = buckets[h] + buckets[h + 1] + buckets[h + 2];
+      if (sum > maxSum) {
+        maxSum = sum;
+        bestHour = h;
+      }
     }
+    if (maxSum > 0) {
+      peakText = `${String(bestHour).padStart(2, "0")}:00–${String(bestHour + 3).padStart(2, "0")}:00`;
+    }
+  } else if (currentChartPeriod === "week") {
+    dom.insightsTitle.textContent = "Найважчий день тижня (90 днів)";
+    const rawDays = new Array(7).fill(0);
+    const cutoff = now - 90 * 86400000;
+    for (const s of appData.smokeHistory) {
+      if (s.timestamp >= cutoff) {
+        rawDays[new Date(s.timestamp).getDay()]++;
+      }
+    }
+    const order = [1, 2, 3, 4, 5, 6, 0];
+    axisLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
+    buckets = order.map((idx) => rawDays[idx]);
+
+    const maxVal = Math.max(...buckets, 0);
+    if (maxVal > 0) {
+      peakText = axisLabels[buckets.indexOf(maxVal)];
+    }
+  } else {
+    dom.insightsTitle.textContent = "Піковий місяць";
+    buckets = new Array(12).fill(0);
+    const months = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"];
+    axisLabels = ["Січ", "Кві", "Лип", "Жов", "Гру"];
+
+    for (const s of appData.smokeHistory) {
+      buckets[new Date(s.timestamp).getMonth()]++;
+    }
+    const maxVal = Math.max(...buckets, 0);
+    if (maxVal > 0) {
+      peakText = months[buckets.indexOf(maxVal)];
+    }
+  }
+
+  dom.peakHourValue.textContent = peakText;
+
+  const maxBucket = Math.max(...buckets, 1);
+  const frag = document.createDocumentFragment();
+  for (const val of buckets) {
+    const cell = document.createElement("div");
+    cell.className = "heatmap-cell";
+    const ratio = val / maxBucket;
+    cell.style.backgroundColor =
+      val === 0 ? "rgba(255, 255, 255, 0.04)" : `rgba(239, 68, 68, ${(0.18 + ratio * 0.78).toFixed(2)})`;
+    frag.appendChild(cell);
+  }
+  dom.activityHeatmap.replaceChildren(frag);
+
+  const labelFrag = document.createDocumentFragment();
+  for (const text of axisLabels) {
+    const span = document.createElement("span");
+    span.textContent = text;
+    labelFrag.appendChild(span);
+  }
+  dom.heatmapLabels.replaceChildren(labelFrag);
 }
 
-// --- WIDGET SYNC ---
-// Removed by user request
-
-function updateUI() {
-    const now = new Date().getTime();
-    const currentSmokeInterval = appData.settings.smokeIntervalMinutes * 60 * 1000;
-    const timeSinceLastSmoke = appData.lastSmokeTime ? now - appData.lastSmokeTime : currentSmokeInterval;
-    const timeRemaining = currentSmokeInterval - timeSinceLastSmoke;
-
-    if (timeRemaining > 0) {
-        const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
-        timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        timerEl.classList.remove('text-green-400');
-        timerEl.classList.add('text-red-500');
-        statusMessageEl.textContent = 'Час до наступної';
-        smokeButton.disabled = true;
-    } else {
-        timerEl.textContent = "GO!";
-        timerEl.classList.remove('text-red-500');
-        timerEl.classList.add('text-green-400');
-        statusMessageEl.textContent = 'Можна курити';
-        smokeButton.disabled = false;
-    }
-
-    emergencySmokeButton.disabled = false;
-    updateStatistics(now);
-    updateAvatar();
-    updateGlobalStats();
-    updateDetoxTracker(now);
-    renderSmokeChart(smokeChartCanvas, appData.smokeHistory, currentChartPeriod, currentChartMode, appData.settings);
-
-
-    // Show sync status visually (optional polish) - removed duplicated syncDot logic as it's handled by updateSyncStatus
+// --- Actions: Smoke, Leaf Fall & Undo ---
+function triggerLeafFall(count) {
+  for (let i = 0; i < count; i++) {
+    const leaf = document.createElement("div");
+    leaf.className = "leaf-falling";
+    leaf.style.left = `${95 + (Math.random() * 54 - 27)}px`;
+    leaf.style.top = `${72 + (Math.random() * 36 - 18)}px`;
+    dom.treeContainer.appendChild(leaf);
+    setTimeout(() => leaf.remove(), 1550);
+  }
 }
 
-function updateDetoxTracker(now) {
-    const lastSmoke = appData.lastSmokeTime;
-    const msSinceLast = lastSmoke ? now - lastSmoke : (48 * 60 * 60 * 1000); // 100% detox if no history
-    
-    const detoxStages = [
-        { id: '20m', ms: 20 * 60 * 1000 },
-        { id: '8h', ms: 8 * 60 * 60 * 1000 },
-        { id: '24h', ms: 24 * 60 * 60 * 1000 },
-        { id: '48h', ms: 48 * 60 * 60 * 1000 }
-    ];
-    
-    detoxStages.forEach(stage => {
-        const percent = Math.min(100, Math.floor((msSinceLast / stage.ms) * 100));
-        const valEl = document.getElementById(`detoxVal-${stage.id}`);
-        const barEl = document.getElementById(`detoxBar-${stage.id}`);
-        if (valEl) valEl.textContent = `${percent}%`;
-        if (barEl) barEl.style.width = `${percent}%`;
-    });
-}
+function handleSmoke(type = "regular") {
+  if (navigator.vibrate) {
+    navigator.vibrate(type === "emergency" ? [40, 40, 40] : 35);
+  }
 
-function updateStatistics(now) {
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
-    const todayTimestamp = today.getTime();
+  const isEmergency = type === "emergency";
+  const shakeClass = isEmergency ? "tree-shake-heavy" : "tree-shake-light";
+  dom.treeContainer.classList.add(shakeClass);
+  dom.toxicCloud.classList.add("active");
+  triggerLeafFall(isEmergency ? 10 : 4);
 
-    const smokedTodayCount = appData.smokeHistory.filter(smoke => smoke.timestamp >= todayTimestamp).length; 
-    const { packPrice, packSize, oldHabit, desiredDailySticks } = appData.settings; 
-    const pricePerCig = (packSize > 0) ? packPrice / packSize : 0;
+  setTimeout(() => {
+    dom.treeContainer.classList.remove(shakeClass);
+    dom.toxicCloud.classList.remove("active");
+  }, 900);
 
-    smokedTodayValueEl.textContent = `${smokedTodayCount} ${getStickPluralForm(smokedTodayCount)}`; 
-    smokedTodayPlannedEl.textContent = `З ${desiredDailySticks} запланованих`;
+  const now = Date.now();
+  appData.lastSmokeTime = now;
+  appData.smokeHistory.push({ timestamp: now, type: isEmergency ? "emergency" : "regular" });
 
-    const actualSpentToday = smokedTodayCount * pricePerCig;
-    const plannedSpentToday = desiredDailySticks * pricePerCig;
-    
-    spentTodayValueEl.textContent = `$${actualSpentToday.toFixed(2)}`; 
-    spentTodayPlannedEl.textContent = `З $${plannedSpentToday.toFixed(2)} запланованих`;
-
-    if (smokedTodayCount > desiredDailySticks) {
-        spentTodayValueEl.classList.remove('text-green-400');
-        spentTodayValueEl.classList.add('text-red-500');
-    } else {
-        spentTodayValueEl.classList.remove('text-red-500');
-        spentTodayValueEl.classList.add('text-green-400');
-    }
-
-    const daysSinceAppStart = Math.max(0.0001, (now - appData.appStartDate) / (1000 * 60 * 60 * 24));
-    const expectedTotalSmokes = daysSinceAppStart * oldHabit; 
-    const actualTotalSmokes = appData.smokeHistory.length;
-    
-    // Today-Centric Balance Logic (Savings/Loss vs Goal)
-    const todayGoalCount = desiredDailySticks;
-    const todayBalance = (todayGoalCount - smokedTodayCount) * pricePerCig;
-    financialBalanceValueEl.textContent = `${todayBalance < 0 ? '-' : '+'}$${Math.abs(todayBalance).toFixed(2)}`;
-
-    const isDailyGoalExceeded = smokedTodayCount > desiredDailySticks;
-
-    if (!isDailyGoalExceeded) {
-        financialBalanceValueEl.classList.remove('text-red-500');
-        financialBalanceValueEl.classList.add('text-emerald-400');
-        financialBalanceLabelEl.textContent = 'Баланс за сьогодні (Економія)';
-        balanceCardEl.classList.remove('border-red-500/50');
-        balanceCardEl.classList.add('border-emerald-500/50');
-        balanceIconEl.textContent = '💰';
-    } else {
-        financialBalanceValueEl.classList.remove('text-emerald-400');
-        financialBalanceValueEl.classList.add('text-red-500');
-        financialBalanceLabelEl.textContent = 'Ціль на сьогодні порушена!';
-        balanceCardEl.classList.remove('border-emerald-500/50');
-        balanceCardEl.classList.add('border-red-500/50');
-        balanceIconEl.textContent = '⚠️';
-    }
-
-
-    let streakMinutes = 0;
-    if (appData.lastSmokeTime === null) {
-        streakMinutes = Math.floor((now - appData.appStartDate) / (1000 * 60));
-    } else {
-        const diffTime = Math.abs(now - appData.lastSmokeTime);
-        streakMinutes = Math.floor(diffTime / (1000 * 60));
-    }
-    
-    let currentStreakHoursForLongest = Math.floor(streakMinutes / 60); 
-    if (currentStreakHoursForLongest > appData.longestSmokeFreeStreakHours) {
-        appData.longestSmokeFreeStreakHours = currentStreakHoursForLongest;
-        saveData(); 
-    }
-    longestSmokeFreeStreakEl.textContent = formatHoursToReadable(appData.longestSmokeFreeStreakHours);
-    smokeFreeStreakEl.textContent = formatMinutesToReadable(streakMinutes);
-
-
-    updateInsights();
-}
-
-function updateInsights() {
-    insightsSection.classList.remove('hidden');
-    
-    let labels = [];
-    let data = [];
-    let peakLabel = '';
-    let peakValueText = '';
-
-    const now = new Date();
-
-    if (currentChartPeriod === 'day') {
-        // Day Logic (Hourly)
-        document.querySelector('#insightsSection span.uppercase').textContent = 'Пікова активність (Години)';
-        labels = ['00:00', '06:00', '12:00', '18:00', '23:59'];
-        data = new Array(24).fill(0);
-        
-        // Use last 30 days history for better hourly insights
-        const recentHistory = appData.smokeHistory.filter(s => s.timestamp > (Date.now() - 30 * 24 * 60 * 60 * 1000));
-        recentHistory.forEach(s => {
-            const h = new Date(s.timestamp).getHours();
-            data[h]++;
-        });
-
-        // Find peak 3-hour window
-        let maxWindowSum = 0;
-        let maxWindowStart = 0;
-        for (let i = 0; i < 22; i++) {
-            const sum = data[i] + data[i+1] + data[i+2];
-            if (sum > maxWindowSum) {
-                maxWindowSum = sum;
-                maxWindowStart = i;
-            }
-        }
-        peakValueText = `${maxWindowStart}:00 - ${maxWindowStart+3}:00`;
-
-    } else if (currentChartPeriod === 'week') {
-        // Week Logic (Daily)
-        document.querySelector('#insightsSection span.uppercase').textContent = 'Найважчий день';
-        data = new Array(7).fill(0);
-        const dayNames = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']; 
-        labels = []; 
-
-        // Analyze last 3 months to find "Busiest Day of Week" generally
-        const recentHistory = appData.smokeHistory.filter(s => s.timestamp > (Date.now() - 90 * 24 * 60 * 60 * 1000));
-        recentHistory.forEach(s => {
-            const day = new Date(s.timestamp).getDay(); // 0 = Sun, 1 = Mon
-            data[day]++;
-        });
-
-        // Shift to start from Monday (standard in UA)
-        // JS getDay(): 0=Sun. We want Mon, Tue ... Sun.
-        // Data index: 0(Sun), 1(Mon)...
-        // We want display: 1, 2, 3, 4, 5, 6, 0
-        const orderedData = [];
-        const orderedLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
-        const map = [1, 2, 3, 4, 5, 6, 0];
-        
-        map.forEach(dayIdx => {
-            orderedData.push(data[dayIdx]);
-        });
-        
-        data = orderedData;
-        labels = orderedLabels; // Just show all or first/last? For 7 bars we can verify layout.
-
-        const maxVal = Math.max(...data, 0);
-        const maxIdx = data.indexOf(maxVal);
-        peakValueText = orderedLabels[maxIdx];
-
-    } else if (currentChartPeriod === 'all') {
-        // All Logic (Monthly)
-        document.querySelector('#insightsSection span.uppercase').textContent = 'Найважчий місяць';
-        data = new Array(12).fill(0);
-        const monthNames = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
-        labels = ['Січ', '', '', '', '', '', '', '', '', '', '', 'Гру'];
-
-        appData.smokeHistory.forEach(s => {
-            const m = new Date(s.timestamp).getMonth();
-            data[m]++;
-        });
-
-        const maxVal = Math.max(...data, 0);
-        const maxIdx = data.indexOf(maxVal);
-        peakValueText = monthNames[maxIdx];
-    }
-
-    peakHourValueEl.textContent = peakValueText;
-
-    // Render Heatmap
-    const maxValInsights = Math.max(...data, 1);
-    activityHeatmapEl.innerHTML = '';
-    
-    data.forEach(val => {
-        const intensity = val / maxValInsights;
-        const bar = document.createElement('div');
-        bar.className = 'flex-1 h-full mx-[1px] rounded-sm'; // Added margin for separate bars
-        if (currentChartPeriod === 'day') bar.className = 'flex-1 h-full'; // Continous for time
-        
-        bar.style.backgroundColor = `rgba(239, 68, 68, ${intensity * 0.8 + 0.1})`; 
-        if (intensity >= 0.9) bar.classList.add('shadow-[0_0_10px_rgba(239,68,68,0.5)]', 'z-10', 'relative');
-        activityHeatmapEl.appendChild(bar);
-    });
-
-    // Render Labels
-    if (heatmapLabelsEl) {
-        heatmapLabelsEl.innerHTML = '';
-        if (currentChartPeriod === 'day') {
-             labels.forEach(l => {
-                 const s = document.createElement('span');
-                 s.textContent = l;
-                 heatmapLabelsEl.appendChild(s);
-             });
-        } else {
-             // For Week/All spread evenly
-             labels.forEach(l => {
-                 const s = document.createElement('span');
-                 s.textContent = l;
-                 heatmapLabelsEl.appendChild(s);
-             });
-        }
-    }
-}
-
-
-
-/**
- * BIO-CORE 3.0: High-Precision Mathematical State Engine
- * Calculates Health and Evolution points on-the-fly from history.
- */
-function calculateTreeState() {
-    const now = Date.now();
-    const appStart = appData.appStartDate || (now - 86400000); // Fallback to 1 day ago
-    
-    // 1. Calculate Health (Sequential Integration)
-    let health = 100;
-    let lastT = appStart;
-    
-    // Sort history just in case it's not
-    const history = [...appData.smokeHistory].sort((a,b) => a.timestamp - b.timestamp);
-    
-    for (const record of history) {
-        if (record.timestamp < appStart) continue; // Ignore pre-app sticks
-        
-        // Regen since last event
-        const elapsedHours = (record.timestamp - lastT) / 3600000;
-        if (elapsedHours > 0) {
-            health = Math.min(100, health + (elapsedHours * REGEN_PER_HOUR));
-        }
-        
-        // Damage from this stick
-        const damage = record.type === 'emergency' ? DAMAGE_EMERGENCY : DAMAGE_REGULAR;
-        health = Math.max(0, health - damage);
-        
-        lastT = record.timestamp;
-    }
-    
-    // Final regen up to NOW
-    const finalElapsedHours = (now - lastT) / 3600000;
-    if (finalElapsedHours > 0) {
-        health = Math.min(100, health + (finalElapsedHours * REGEN_PER_HOUR));
-    }
-    
-    // 2. Calculate Evolution (Total Time - Total Penalties)
-    const totalPossibleTime = now - appStart;
-    const totalPenalty = history.reduce((acc, s) => {
-        const penalty = s.type === 'emergency' ? PENALTY_EMERGENCY_MS : PENALTY_REGULAR_MS;
-        return acc + penalty;
-    }, 0);
-    
-    const evolutionMs = Math.max(0, totalPossibleTime - totalPenalty);
-    
-    return { 
-        health: Math.round(health), 
-        evolutionMs 
-    };
-}
-
-
-function updateAvatar() { 
-    if (!treeContainerEl || !healthValueEl) return;
-    
-    const now = Date.now();
-    const { health, evolutionMs } = calculateTreeState();
-    
-    // Periodic synchronization with Firestore (still needed to push history reliably)
-    if (now - lastFirebaseSyncTime > 15000) {
-        lastFirebaseSyncTime = now;
-        console.log("[Sync] Background history sync...");
-        saveData(false); 
-    }
-
-    // 3. Evolution Stage (Based on Evolution Points / Experience)
-    const evolutionDays = evolutionMs / (1000 * 60 * 60 * 24);
-    
-    let stage = 1;
-    let stageTitle = "Паросток";
-    if (evolutionDays >= 14) { stage = 5; stageTitle = "Міфічний Дуб"; }
-    else if (evolutionDays >= 7) { stage = 4; stageTitle = "Велике Дерево"; }
-    else if (evolutionDays >= 3) { stage = 3; stageTitle = "Середнє Дерево"; }
-    else if (evolutionDays >= 1) { stage = 2; stageTitle = "Саджанець"; }
-
-    // 4. Render Tree Stage & Health Levels
-    renderLifeTree(stage, health);
-
-    // 5. Update Labels
-    healthValueEl.textContent = `Здоров'я: ${health}%`;
-    if (growthStageEl) growthStageEl.textContent = `Стадія: ${stage} / 5 (${stageTitle})`;
-    
-    healthValueEl.classList.remove('text-primary-glow', 'text-warning', 'text-error', 'border-emerald-500/20', 'border-warning/20', 'border-error/20');
-    if (health > 70) {
-        healthValueEl.classList.add('text-primary-glow', 'border-emerald-500/20');
-    } else if (health > 30) {
-        healthValueEl.classList.add('text-warning', 'border-warning/20');
-    } else {
-        healthValueEl.classList.add('text-error', 'border-error/20');
-    }
-}
-
-async function renderLifeTree(stage, health) {
-    const container = treeContainerEl;
-    let img = container.querySelector('#treeImage');
-    
-    if (!img) {
-        container.innerHTML = '<div class="toxic-cloud" id="toxicCloud"></div>';
-        img = document.createElement('img');
-        img.id = 'treeImage';
-        container.appendChild(img);
-        toxicCloudEl = document.getElementById('toxicCloud');
-    }
-
-    let assetIndex = stage;
-    if (assetIndex > 5) assetIndex = 5;
-    
-    const rawSrc = `assets/tree_${assetIndex}.png`;
-    
-    // Direct load for OLED-seamless blending
-    if (img.getAttribute('src') !== rawSrc) {
-        img.setAttribute('src', rawSrc);
-    }
-
-    const healthLevel = Math.max(1, Math.min(10, Math.floor(health / 10) + (health % 10 > 5 ? 1 : 0))); // Floor + bonus for >5%
-    if (health === 100) img.className = 'tree-full-health'; // Exact 100% marker if needed
-    else img.className = '';
-    
-    img.classList.add(`tree-lvl-${healthLevel}`);
-    if (stage === 5) img.classList.add('tree-stage-5');
-    if (healthLevel < 5) img.classList.add('tree-sick');
-
-    // Breathing effect via CSS Class
-    img.classList.add('tree-breathing');
-}
-
-// Removing unused helper function logic.
-// renderLeafParticles removed. logic.
-
-function updateGlobalStats() {
-    const totalSmokes = appData.smokeHistory.length;
-    totalSmokesAllTimeEl.textContent = totalSmokes;
-
-    const daysSinceStart = Math.max(1, (new Date().getTime() - appData.appStartDate) / (1000 * 60 * 60 * 24));
-    const avg = totalSmokes / daysSinceStart;
-    avgSmokesPerDayEl.textContent = avg.toFixed(1);
-}
-
-function handleChartTabClick(e) {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    
-    if (navigator.vibrate) navigator.vibrate(20);
-
-    // Update State
-    currentChartPeriod = btn.dataset.period;
-
-    // Update UI
-    statsTabs.forEach(t => {
-        t.classList.remove('active', 'bg-slate-700', 'text-white', 'font-bold', 'shadow-sm');
-        t.classList.add('text-slate-400', 'font-medium');
-        if (t === btn) {
-            t.classList.add('active', 'bg-slate-700', 'text-white', 'font-bold', 'shadow-sm');
-            t.classList.remove('text-slate-400', 'font-medium');
-        }
-    });
-
-    updateUI();
-}
-
-function handleChartModeClick(e) {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    
-    if (navigator.vibrate) navigator.vibrate(20);
-
-    currentChartMode = btn.dataset.mode;
-
-    statsModeBtns.forEach(b => {
-        b.classList.remove('active', 'bg-slate-700', 'text-white', 'shadow-sm');
-        b.classList.add('text-slate-400');
-        if (b === btn) {
-            b.classList.add('active', 'bg-slate-700', 'text-white', 'shadow-sm');
-            b.classList.remove('text-slate-400');
-        }
-    });
-    updateUI();
-}
-
-function triggerLeafFall(count = 5) {
-    if (!treeContainerEl) return;
-    
-    for (let i = 0; i < count; i++) {
-        const leaf = document.createElement('div');
-        leaf.className = 'leaf-falling absolute';
-        
-        // Random start position within tree canopy area logic.
-        const x = 110 + (Math.random() * 60 - 30);
-        const y = 80 + (Math.random() * 40 - 20);
-        
-        leaf.style.left = `${x}px`;
-        leaf.style.top = `${y}px`;
-        leaf.style.width = '12px';
-        leaf.style.height = '6px';
-        leaf.style.borderRadius = '50%';
-        leaf.style.background = 'oklch(60% 0.15 165)';
-        leaf.style.zIndex = '5';
-        
-        treeContainerEl.appendChild(leaf);
-        setTimeout(() => leaf.remove(), 2000);
-    }
-}
-
-function handleSmoke(type = 'regular') {
-    console.log(`[handleSmoke] ${type} smoke button clicked!`);
-    
-    // Haptic Feedback 2026
-    if (navigator.vibrate) {
-        navigator.vibrate(type === 'emergency' ? [50, 50, 50] : 50);
-    }
-    
-    // Tree Feedback Logic 2025
-    if (treeContainerEl && toxicCloudEl) {
-        const isEmergency = type === 'emergency';
-        const shakeClass = isEmergency ? 'tree-shake-heavy' : 'tree-shake-light';
-        
-        treeContainerEl.classList.add(shakeClass);
-        toxicCloudEl.classList.add('active');
-        
-        // Trigger leaf particles logic.
-        triggerLeafFall(isEmergency ? 12 : 5);
-        
-        setTimeout(() => {
-            treeContainerEl.classList.remove(shakeClass);
-            toxicCloudEl.classList.remove('active');
-        }, 1200);
-    }
-    
-    appData.lastSmokeTime = new Date().getTime();
-    appData.smokeHistory.push({ timestamp: appData.lastSmokeTime, type: type });
-    appData.updatedAt = Date.now(); // CRITICAL: Bump timestamp so sync logic honors this change
-    
-    // Show undo button for 60 seconds
-    showUndoToast();
-    
-    saveData(true);
-    updateUI();
+  persistState(appData, true);
+  renderFullDashboard();
+  showUndoToast();
 }
 
 function showUndoToast() {
-    if (!undoNotificationEl) return;
-    
-    clearTimeout(undoTimeout);
-    clearInterval(undoInterval);
-    
-    let secondsLeft = 60;
-    undoTimerTextEl.textContent = `У вас є ${secondsLeft} секунд`;
-    
-    undoNotificationEl.classList.remove('translate-y-32', 'opacity-0', 'pointer-events-none');
-    
-    undoInterval = setInterval(() => {
-        secondsLeft--;
-        if (secondsLeft <= 0) {
-            hideUndoToast();
-        } else {
-            undoTimerTextEl.textContent = `У вас є ${secondsLeft} секунд`;
-        }
-    }, 1000);
-    
-    undoTimeout = setTimeout(() => {
-        hideUndoToast();
-    }, 60000);
+  clearTimeout(undoTimeoutId);
+  clearInterval(undoIntervalId);
+
+  let secondsLeft = 60;
+  dom.undoTimerText.textContent = `Скасувати можна ще ${secondsLeft} с`;
+  dom.undoNotification.classList.add("is-visible");
+
+  undoIntervalId = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft <= 0) {
+      hideUndoToast();
+    } else {
+      dom.undoTimerText.textContent = `Скасувати можна ще ${secondsLeft} с`;
+    }
+  }, 1000);
+
+  undoTimeoutId = setTimeout(hideUndoToast, 60000);
 }
 
 function hideUndoToast() {
-    if (!undoNotificationEl) return;
-    undoNotificationEl.classList.add('translate-y-32', 'opacity-0', 'pointer-events-none');
-    clearInterval(undoInterval);
-    clearTimeout(undoTimeout);
+  dom.undoNotification.classList.remove("is-visible");
+  clearInterval(undoIntervalId);
+  clearTimeout(undoTimeoutId);
 }
 
 function handleUndoSmoke() {
-    if (appData.smokeHistory.length === 0) return;
-    
-    appData.smokeHistory.pop();
-    appData.lastSmokeTime = appData.smokeHistory.length > 0 ? appData.smokeHistory[appData.smokeHistory.length - 1].timestamp : null;
-    appData.updatedAt = Date.now();
-    
-    hideUndoToast();
-    saveData(true);
-    updateUI();
-    console.log("[Undo] Smoke action undone.");
+  if (appData.smokeHistory.length === 0) return;
+  appData.smokeHistory.pop();
+  appData.lastSmokeTime =
+    appData.smokeHistory.length > 0
+      ? appData.smokeHistory[appData.smokeHistory.length - 1].timestamp
+      : null;
+
+  hideUndoToast();
+  persistState(appData, true);
+  renderFullDashboard();
+  showStatusToast("Останній стік скасовано", "Історію та здоров'я дерева відновлено");
 }
 
-let breatheInterval = null;
+// --- Phase-Locked Urge Surfing Breathing (5s Inhale Expand, 5s Exhale Contract) ---
+function stepBreathingFrame(nowPerf) {
+  const elapsedMs = nowPerf - breatheStartMs;
+  const remainingMs = 60000 - elapsedMs;
+
+  if (remainingMs <= 0) {
+    stopBreathing();
+    showStatusToast("Хвилю тяги пройдено", "60 секунд дихання завершено без стіка");
+    return;
+  }
+
+  const secondsLeft = Math.ceil(remainingMs / 1000);
+  if (dom.breatheTimer.textContent !== String(secondsLeft)) {
+    dom.breatheTimer.textContent = String(secondsLeft);
+  }
+
+  const cyclePos = elapsedMs % 10000; // 0..10000 ms
+  const isInhale = cyclePos < 5000;
+  const phaseLabel = isInhale ? "Вдих" : "Видих";
+  if (dom.breatheText.textContent !== phaseLabel) {
+    dom.breatheText.textContent = phaseLabel;
+  }
+
+  // Smooth cosine wave: 0 ms -> scale 1.00, 5000 ms -> scale 1.28, 10000 ms -> scale 1.00
+  const progress01 = (1 - Math.cos((cyclePos / 5000) * Math.PI)) / 2;
+  const scale = 1 + progress01 * 0.28;
+  dom.breatheCircle.style.transform = `scale(${scale.toFixed(4)})`;
+
+  breatheRafId = requestAnimationFrame(stepBreathingFrame);
+}
+
 function startBreathing() {
-    let secondsLeft = 60;
-    breatheTimer.textContent = secondsLeft;
-    breatheCircle.classList.add('breathe-cycle');
-    breatheModal.showModal();
-    
-    const updateBreatheText = () => {
-        const phase = secondsLeft % 10;
-        breatheText.textContent = phase >= 5 ? 'Видих' : 'Вдих';
-    };
-    updateBreatheText();
-    
-    breatheInterval = setInterval(() => {
-        secondsLeft--;
-        if (secondsLeft <= 0) {
-            stopBreathing();
-        } else {
-            breatheTimer.textContent = secondsLeft;
-            updateBreatheText();
-        }
-    }, 1000);
+  cancelAnimationFrame(breatheRafId);
+  breatheStartMs = performance.now();
+  dom.breatheTimer.textContent = "60";
+  dom.breatheText.textContent = "Вдих";
+  dom.breatheCircle.style.transform = "scale(1)";
+
+  if (!dom.breatheModal.open) {
+    dom.breatheModal.showModal();
+  }
+  breatheRafId = requestAnimationFrame(stepBreathingFrame);
 }
 
 function stopBreathing() {
-    clearInterval(breatheInterval);
-    breatheCircle.classList.remove('breathe-cycle');
-    breatheModal.close();
+  cancelAnimationFrame(breatheRafId);
+  breatheRafId = null;
+  dom.breatheCircle.style.transform = "scale(1)";
+  if (dom.breatheModal.open) {
+    dom.breatheModal.close();
+  }
 }
 
-function updateSettingsInputs() {
-    packPriceInput.value = appData.settings.packPrice;
-    packSizeInput.value = appData.settings.packSize;
-    oldHabitInput.value = appData.settings.oldHabit;
-    smokeIntervalMinutesInput.value = appData.settings.smokeIntervalMinutes;
-    desiredDailySticksInput.value = appData.settings.desiredDailySticks; 
-    updateOldHabitMoneyDisplay(); 
-    updateDesiredDailySticksMoneyDisplay(); 
+// --- Accessible Native Dialog Helpers ---
+function askConfirm(title, message, confirmLabel = "Підтвердити") {
+  return new Promise((resolve) => {
+    dom.confirmTitle.textContent = title;
+    dom.modalText.textContent = message;
+    dom.confirmYes.textContent = confirmLabel;
+
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      dom.confirmYes.removeEventListener("click", onYes);
+      dom.confirmNo.removeEventListener("click", onNo);
+      dom.confirmModal.removeEventListener("close", onClose);
+      if (dom.confirmModal.open) dom.confirmModal.close();
+      resolve(result);
+    };
+
+    const onYes = () => finish(true);
+    const onNo = () => finish(false);
+    const onClose = () => finish(false);
+
+    dom.confirmYes.addEventListener("click", onYes);
+    dom.confirmNo.addEventListener("click", onNo);
+    dom.confirmModal.addEventListener("close", onClose);
+
+    dom.confirmModal.showModal();
+  });
 }
 
-function updateOldHabitMoneyDisplay() {
-    const packPrice = Number(packPriceInput.value) || 0;
-    const packSize = Number(packSizeInput.value) || 1;
-    const oldHabit = Number(oldHabitInput.value) || 0;
-    const pricePerCig = (packSize > 0) ? packPrice / packSize : 0;
-    const oldHabitCost = oldHabit * pricePerCig;
-    oldHabitMoneyEl.textContent = `$${oldHabitCost.toFixed(2)}/день`;
+function showStatusToast(title, sub = "", actionLabel = "", onAction = null, durationMs = 3600) {
+  clearTimeout(toastTimeoutId);
+  dom.statusToastTitle.textContent = title;
+  dom.statusToastSub.textContent = sub;
+
+  if (actionLabel && typeof onAction === "function") {
+    dom.statusToastAction.textContent = actionLabel;
+    dom.statusToastAction.classList.remove("hidden");
+    dom.statusToastAction.onclick = () => {
+      dom.statusToast.classList.remove("is-visible");
+      onAction();
+    };
+  } else {
+    dom.statusToastAction.classList.add("hidden");
+    dom.statusToastAction.onclick = null;
+  }
+
+  dom.statusToast.classList.add("is-visible");
+  if (!onAction && durationMs > 0) {
+    toastTimeoutId = setTimeout(() => {
+      dom.statusToast.classList.remove("is-visible");
+    }, durationMs);
+  }
 }
 
-function updateDesiredDailySticksMoneyDisplay() {
-    const packPrice = Number(packPriceInput.value) || 0;
-    const packSize = Number(packSizeInput.value) || 1;
-    const desiredDailySticks = Number(desiredDailySticksInput.value) || 0;
-    const pricePerCig = (packSize > 0) ? packPrice / packSize : 0;
-    const desiredDailySticksCost = desiredDailySticks * pricePerCig;
-    desiredDailySticksMoneyEl.textContent = `$${desiredDailySticksCost.toFixed(2)}/день`;
+// --- Settings & Backup Management ---
+function updateSettingsMoneyPreviews() {
+  const currency = dom.currencySelect.value || "UAH";
+  const packPrice = Math.max(0, Number(dom.packPrice.value) || 0);
+  const packSize = Math.max(1, Number(dom.packSize.value) || 1);
+  const oldHabit = Math.max(0, Number(dom.oldHabit.value) || 0);
+  const desiredDaily = Math.max(0, Number(dom.desiredDailySticks.value) || 0);
+  const perStick = packPrice / packSize;
+
+  dom.oldHabitMoney.textContent = `${formatMoney(oldHabit * perStick, currency)}/день`;
+  dom.desiredDailySticksMoney.textContent = `${formatMoney(desiredDaily * perStick, currency)}/день`;
+}
+
+function populateSettingsForm() {
+  const s = appData.settings;
+  dom.currencySelect.value = s.currency || "UAH";
+  dom.packPrice.value = s.packPrice;
+  dom.packSize.value = s.packSize;
+  dom.oldHabit.value = s.oldHabit;
+  dom.desiredDailySticks.value = s.desiredDailySticks;
+  dom.smokeIntervalMinutes.value = s.smokeIntervalMinutes;
+  updateSettingsMoneyPreviews();
+}
+
+function openSettingsModal() {
+  populateSettingsForm();
+  document.body.style.overflow = "hidden";
+  dom.settingsModal.showModal();
+}
+
+function closeSettingsModal() {
+  if (dom.settingsModal.open) {
+    dom.settingsModal.close();
+  }
+  document.body.style.overflow = "";
 }
 
 function handleSaveSettings() {
-    console.log("[handleSaveSettings] Save button clicked!");
-    appData.settings.packPrice = Number(packPriceInput.value) || 0;
-    appData.settings.packSize = Number(packSizeInput.value) || 1;
-    appData.settings.oldHabit = Number(oldHabitInput.value) || 0;
-    appData.settings.desiredDailySticks = Number(desiredDailySticksInput.value) || 0; 
-    let newInterval = Number(smokeIntervalMinutesInput.value);
-    appData.settings.smokeIntervalMinutes = (newInterval > 0) ? newInterval : 60;
-    
-    appData.settingsUpdatedAt = Date.now();
-    appData.updatedAt = Date.now();
-    
-    saveData(false); // Already updated timestamps above
-    updateUI();
-    toggleSettingsView();
+  appData.settings = {
+    currency: ["UAH", "USD", "EUR"].includes(dom.currencySelect.value) ? dom.currencySelect.value : "UAH",
+    packPrice: Math.max(0, Number(dom.packPrice.value) || 0),
+    packSize: Math.max(1, Math.round(Number(dom.packSize.value) || 20)),
+    oldHabit: Math.max(0, Number(dom.oldHabit.value) || 0),
+    desiredDailySticks: Math.max(0, Number(dom.desiredDailySticks.value) || 0),
+    smokeIntervalMinutes: Math.max(1, Math.round(Number(dom.smokeIntervalMinutes.value) || 60)),
+  };
+  appData.settingsUpdatedAt = Date.now();
+
+  persistState(appData, true);
+  closeSettingsModal();
+  renderFullDashboard();
+  showStatusToast("Параметри збережено", "Ліміти, інтервал та валюту оновлено");
 }
 
-async function handleResetData() {
-    console.log("[handleResetData] Triggered");
-    if (!confirm("Це видалить всю вашу історію та статистику. Ви впевнені?")) return;
-    
-    console.log("[handleResetData] Resetting data...");
-    
-    // 0. STOP listener
-    if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
-    }
-
-    // 1. Update local state with a NUKED timestamp (5 seconds in future)
-    // This allows settings to be saved almost immediately after reset
-    appData = getDefaultAppData();
-    appData.updatedAt = Date.now() + 5000; 
-    saveLocalData(appData, false); 
-    
-    // 2. Overwrite Firestore
-    updateSyncStatus('syncing');
-    if (dataRef && userId) {
-        try {
-            await setDoc(dataRef, appData);
-            updateSyncStatus('online');
-            console.log("[saveData] Saved to Firestore successfully");
-        } catch (e) {
-            updateSyncStatus('error');
-            console.error("[saveData] Failed to save to Firestore:", e);
-            alert("Помилка синхронізації при видаленні. Спробуйте ще раз.");
-        }
-    }
-    
-    // 3. NUCLEAR RELOAD
-    // Instead of rebuilding UI, we reload the whole page to get a fresh loadData cycle
-    alert("Дані успішно видалено. Додаток перезавантажиться.");
-    window.location.reload();
+function handleExportBackup() {
+  const payload = {
+    schema: "iqosfree-v4",
+    exportedAt: new Date().toISOString(),
+    data: appData,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const dateTag = new Date().toISOString().slice(0, 10);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `iqosfree-backup-${dateTag}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showStatusToast("Резервну копію збережено", `Файл iqosfree-backup-${dateTag}.json завантажено`);
 }
 
-async function handleForceSync() {
-    if (!userId || !dataRef) return;
-    console.log("[handleForceSync] Manual sync triggered...");
-    forceSyncButton.disabled = true;
-    forceSyncButton.innerHTML = "🕒 СИНХРОНІЗУЄМО...";
-    updateSyncStatus('syncing');
-    
-    try {
-        const docSnap = await getDoc(dataRef);
-        if (docSnap.exists()) {
-            const remoteData = docSnap.data();
-            const localData = loadLocalData();
-            
-            // Perform a hard merge
-            const localHistory = (localData.smokeHistory || []);
-            const remoteHistory = (remoteData.smokeHistory || []);
-            const allSmokes = [...localHistory, ...remoteHistory];
-            const uniqueSmokes = [];
-            const seenTimestamps = new Set();
-            for (const s of allSmokes) {
-                const ts = typeof s === 'number' ? s : s.timestamp;
-                if (!seenTimestamps.has(ts)) {
-                    seenTimestamps.add(ts);
-                    uniqueSmokes.push(typeof s === 'number' ? {timestamp:s, type:'regular'} : s);
-                }
-            }
-            uniqueSmokes.sort((a,b) => a.timestamp - b.timestamp);
-            
-            appData = {
-                ...getDefaultAppData(),
-                ...remoteData,
-                smokeHistory: uniqueSmokes,
-                longestSmokeFreeStreakHours: Math.max(localData.longestSmokeFreeStreakHours || 0, remoteData.longestSmokeFreeStreakHours || 0),
-                updatedAt: Date.now()
-            };
-            
-            saveLocalData(appData);
-            updateSettingsInputs();
-            updateUI();
-            console.log("[handleForceSync] Sync complete. Merged sticks:", uniqueSmokes.length);
-        }
-        updateSyncStatus('online');
-    } catch (e) {
-        console.error("[handleForceSync] Error:", e);
-        updateSyncStatus('error');
-    } finally {
-        setTimeout(() => {
-            if (forceSyncButton) {
-                forceSyncButton.disabled = false;
-                forceSyncButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> СИНХРОНІЗАЦІЯ`;
-            }
-        }, 1000);
-    }
-}
+async function handleImportFile(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
 
-async function handleDeepReset() {
-    console.log("[handleDeepReset] Triggered");
-    if (!confirm("Це повністю очистить кеш додатку та вийде з акаунту. Ви впевнені?")) return;
-
-    console.log("[DeepReset] Starting nuclear cleanup...");
-    
-    // 0. Sign out from Firebase if authenticated
-    if (auth) {
-        try {
-            await signOut(auth);
-            console.log("[DeepReset] Firebase signed out");
-        } catch (e) {
-            console.error("[DeepReset] Sign out error:", e);
-        }
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const candidate = parsed && parsed.data && typeof parsed.data === "object" ? parsed.data : parsed;
+    if (!candidate || (!Array.isArray(candidate.smokeHistory) && !candidate.settings)) {
+      showStatusToast("Некоректний файл", "JSON не містить структури IQOSFree");
+      return;
     }
 
-    // 1. Clear Local Storage
-    localStorage.clear();
-    
-    // 2. Unregister ALL Service Workers
-    if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (let reg of regs) {
-            await reg.unregister();
-            console.log("[DeepReset] SW unregistered");
-        }
-    }
-    
-    // 3. Clear Caches
-    if ('caches' in window) {
-        const keys = await caches.keys();
-        for (let key of keys) {
-            await caches.delete(key);
-            console.log("[DeepReset] Cache deleted:", key);
-        }
-    }
+    const sanitized = sanitizeAppData(candidate);
+    const ok = await askConfirm(
+      "Відновити резервну копію?",
+      `У файлі знайдено записів стіків: ${sanitized.smokeHistory.length}. Поточні дані буде замінено.`,
+      "Відновити"
+    );
+    if (!ok) return;
 
-    // 4. Reload
-    window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
-}
-
-function toggleSettingsView() {
-    if (navigator.vibrate) navigator.vibrate(30);
-
-    const action = () => {
-        // Toggle <dialog> state
-        if (settingsView.open) {
-            settingsView.close();
-            // Enable scrolling on body again if needed
-            document.body.style.overflow = '';
-        } else {
-            settingsView.showModal();
-            updateSettingsInputs();
-            // Prevent body scroll behind dialog
-            document.body.style.overflow = 'hidden';
-        }
-    };
-
-    if (!document.startViewTransition) {
-        action();
-    } else {
-        document.startViewTransition(action);
-    }
-}
-
-// Auth Handlers
-async function handleGoogleSignIn() {
-    if (isLocalOnlyMode || !auth) {
-        if (userStatusDisplay) {
-            userStatusDisplay.textContent = "Локальний режим: вхід через Google вимкнено";
-        }
-        return;
-    }
-    const provider = new GoogleAuthProvider();
-    signInGoogleButton.disabled = true;
-    signInGoogleButton.textContent = "Вхід...";
-    try {
-        if (auth.currentUser && auth.currentUser.isAnonymous) {
-            await linkWithPopup(auth.currentUser, provider);
-        } else {
-            await signInWithPopup(auth, provider);
-        }
-    } catch (error) {
-        console.error("Auth error:", error);
-        if (error.code === 'auth/credential-already-in-use') {
-             userStatusDisplay.textContent = "Акаунт існує. Переходимо...";
-             const credential = GoogleAuthProvider.credentialFromError(error);
-             if (credential) {
-                 try {
-                     await signInWithCredential(auth, credential);
-                 } catch (reauthError) {
-                     console.error("Reauth error:", reauthError);
-                     userStatusDisplay.textContent = "Помилка входу в існуючий.";
-                 }
-             }
-        } else {
-             userStatusDisplay.textContent = `Помилка: ${error.message}`;
-        }
-    } finally {
-        signInGoogleButton.disabled = false;
-        signInGoogleButton.textContent = "Увійти через Google";
-    }
-}
-
-async function handleSignOut() {
-    if (!auth) return;
-    try {
-        await signOut(auth);
-    } catch (error) {
-        console.error("SignOut error:", error);
-    }
+    appData = sanitized;
+    lastRenderedStage = -1;
+    lastRenderedHealth = -1;
+    persistState(appData, true);
+    closeSettingsModal();
+    renderFullDashboard();
+    showStatusToast("Дані відновлено", `Імпортовано записів: ${appData.smokeHistory.length}`);
+  } catch {
+    showStatusToast("Помилка читання JSON", "Перевірте цілісність файлу резервної копії");
+  }
 }
 
 async function handleHardRefresh() {
-    if (!confirm("Це очистить кеш програми та перезавантажить її. Допомагає, якщо пристрої показують різні дані. Продовжити?")) return;
-    
-    updateSyncStatus('syncing');
-    if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (let registration of registrations) {
-            await registration.unregister();
-        }
-    }
-    const names = await caches.keys();
-    for (let name of names) {
-        await caches.delete(name);
-    }
-    
-    // Clear reset flag just in case
-    localStorage.removeItem('FORCE_FIREBASE_RESET');
-    
-    alert("Кеш очищено. Програма перезавантажується...");
-    window.location.reload(true);
+  const ok = await askConfirm(
+    "Оновити кеш застосунку?",
+    "Історія куріння та налаштування збережуться, оновиться лише офлайн-кеш файлів.",
+    "Оновити кеш"
+  );
+  if (!ok) return;
+
+  if ("serviceWorker" in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of regs) await reg.unregister();
+  }
+  if ("caches" in window) {
+    const keys = await caches.keys();
+    for (const key of keys) await caches.delete(key);
+  }
+  window.location.reload();
 }
 
-const attachEventListeners = () => {
-    smokeButton.addEventListener('click', () => handleSmoke('regular'));
-    emergencySmokeButton.addEventListener('click', () => handleSmoke('emergency'));
-    openSettingsButton.addEventListener('click', toggleSettingsView);
-    closeSettingsButton.addEventListener('click', toggleSettingsView);
-    saveSettingsButton.addEventListener('click', handleSaveSettings);
-    if (undoActionBtn) undoActionBtn.addEventListener('click', handleUndoSmoke);
-    if (forceSyncButton) forceSyncButton.addEventListener('click', handleForceSync);
-    if (hardRefreshButton) hardRefreshButton.addEventListener('click', handleHardRefresh);
-    deepResetButton.addEventListener('click', handleDeepReset);
-    resetDataButton.addEventListener('click', handleResetData);
-    signInGoogleButton.addEventListener('click', handleGoogleSignIn);
-    signOutButton.addEventListener('click', handleSignOut);
+async function handleResetData() {
+  const ok = await askConfirm(
+    "Скинути всю історію?",
+    "Усі записи про викурені стіки та рекорди буде остаточно видалено з цього пристрою.",
+    "Видалити все"
+  );
+  if (!ok) return;
 
-    packPriceInput.addEventListener('input', () => { updateOldHabitMoneyDisplay(); updateDesiredDailySticksMoneyDisplay(); });
-    packSizeInput.addEventListener('input', () => { updateOldHabitMoneyDisplay(); updateDesiredDailySticksMoneyDisplay(); });
-    oldHabitInput.addEventListener('input', updateOldHabitMoneyDisplay);
-    desiredDailySticksInput.addEventListener('input', updateDesiredDailySticksMoneyDisplay);
-    
-    window.addEventListener('online', () => {
-        console.log("[Network] Back online. Syncing...");
-        saveData(true);
-    });
+  localStorage.removeItem(BACKUP_KEY);
+  for (const legacyKey of LEGACY_KEYS) {
+    localStorage.removeItem(legacyKey);
+    localStorage.removeItem(`${legacyKey}_backup`);
+  }
 
-    eventListenersAttached = true;
+  appData = getDefaultAppData();
+  lastRenderedStage = -1;
+  lastRenderedHealth = -1;
+  hideUndoToast();
+  persistState(appData, true);
+  closeSettingsModal();
+  renderFullDashboard();
+  showStatusToast("Історію очищено", "Відлік розпочато з чистого аркуша");
 }
 
-// Initialization
-document.addEventListener('DOMContentLoaded', async () => {
-    // Select elements
-    loader = document.getElementById('loader'); 
-    appContainer = document.getElementById('app');
-    mainView = document.getElementById('main-view');
-    settingsView = document.getElementById('settings-view');
-    timerEl = document.getElementById('timer');
-    statusMessageEl = document.getElementById('statusMessage');
-    treeContainerEl = document.getElementById('treeContainer');
-    toxicCloudEl = document.getElementById('toxicCloud');
-    healthValueEl = document.getElementById('healthValue');
-    growthStageEl = document.getElementById('growthStage');
-    smokeButton = document.getElementById('smokeButton');
-    emergencySmokeButton = document.getElementById('emergencySmokeButton');
-    
-    smokedTodayValueEl = document.getElementById('smokedTodayValue');
-    smokedTodayPlannedEl = document.getElementById('smokedTodayPlanned');
-    spentTodayValueEl = document.getElementById('spentTodayValue');
-    spentTodayPlannedEl = document.getElementById('spentTodayPlanned');
-    balanceCardEl = document.getElementById('balanceCard');
-    financialBalanceLabelEl = document.getElementById('financialBalanceLabel');
-    financialBalanceValueEl = document.getElementById('financialBalanceValue');
-    balanceIconEl = document.getElementById('balanceIcon');
-    smokeFreeStreakEl = document.getElementById('smokeFreeStreak');
-    longestSmokeFreeStreakEl = document.getElementById('longestSmokeFreeStreak');
-    
-    openSettingsButton = document.getElementById('openSettingsButton');
-    closeSettingsButton = document.getElementById('closeSettingsButton');
-    saveSettingsButton = document.getElementById('saveSettingsButton');
-    forceSyncButton = document.getElementById('forceSyncButton');
-    deepResetButton = document.getElementById('deepResetButton');
-    resetDataButton = document.getElementById('resetDataButton');
-    accountBadge = document.getElementById('accountBadge');
-    hardRefreshButton = document.getElementById('hardRefreshButton');
-    lastSettingsSyncTimeEl = document.getElementById('lastSettingsSyncTime');
-    undoNotificationEl = document.getElementById('undoNotification');
-    undoActionBtn = document.getElementById('undoActionBtn');
-    undoTimerTextEl = document.getElementById('undoTimerText');
-    
-    sosButton = document.getElementById('sosButton');
-    breatheModal = document.getElementById('breatheModal');
-    breatheCircle = document.getElementById('breatheCircle');
-    breatheText = document.getElementById('breatheText');
-    breatheTimer = document.getElementById('breatheTimer');
-    closeBreatheBtn = document.getElementById('closeBreatheBtn');
+// --- Timer Lifecycle (0% CPU in Hidden Tabs) ---
+function startRealtimeTicker() {
+  if (tickIntervalId !== null) return;
+  tickIntervalId = setInterval(tickRealtimeUI, 1000);
+}
 
-    signInGoogleButton = document.getElementById('signInGoogleButton'); 
-    signOutButton = document.getElementById('signOutButton'); 
-    userStatusDisplay = document.getElementById('userStatusDisplay'); 
-    
-    packPriceInput = document.getElementById('packPrice');
-    packSizeInput = document.getElementById('packSize'); 
-    oldHabitInput = document.getElementById('oldHabit');
-    smokeIntervalMinutesInput = document.getElementById('smokeIntervalMinutes');
-    oldHabitMoneyEl = document.getElementById('oldHabitMoney');
-    desiredDailySticksInput = document.getElementById('desiredDailySticks');
-    desiredDailySticksMoneyEl = document.getElementById('desiredDailySticksMoney');
+function stopRealtimeTicker() {
+  if (tickIntervalId !== null) {
+    clearInterval(tickIntervalId);
+    tickIntervalId = null;
+  }
+}
 
-    statisticsSection = document.getElementById('statisticsSection');
-    smokeChartCanvas = document.getElementById('smokeChart');
-    totalSmokesAllTimeEl = document.getElementById('totalSmokesAllTime');
-    avgSmokesPerDayEl = document.getElementById('avgSmokesPerDay');
-    avgSmokesPerDayEl = document.getElementById('avgSmokesPerDay');
-    statsTabs = document.querySelectorAll('.stats-tab');
-    statsModeBtns = document.querySelectorAll('.mode-btn');
-    insightsSection = document.getElementById('insightsSection');
-    peakHourValueEl = document.getElementById('peakHourValue');
-    activityHeatmapEl = document.getElementById('activityHeatmap');
-    heatmapLabelsEl = document.getElementById('heatmapLabels');
-    
-    statsTabs.forEach(tab => tab.addEventListener('click', handleChartTabClick));
-    statsModeBtns.forEach(btn => btn.addEventListener('click', handleChartModeClick));
+// --- PWA Install & Service Worker ---
+function setupPwaAndServiceWorker() {
+  let deferredPrompt = null;
 
-    confirmModal = document.getElementById('confirmModal');
-    modalText = document.getElementById('modalText');
-    confirmYes = document.getElementById('confirmYes');
-    confirmNo = document.getElementById('confirmNo');
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    dom.pwaInstallBanner.classList.add("is-visible");
+  });
 
-    setupConfirmModalListeners();
-    attachEventListeners(); // Force attachment here
-    
-    if (sosButton) sosButton.addEventListener('click', startBreathing);
-    if (closeBreatheBtn) closeBreatheBtn.addEventListener('click', stopBreathing);
+  dom.pwaInstallBtn.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    dom.pwaInstallBanner.classList.remove("is-visible");
+  });
 
-    // PWA Custom Install Promotion 2026
-    let deferredPrompt = null;
-    const pwaBanner = document.getElementById('pwaInstallBanner');
-    const pwaBtn = document.getElementById('pwaInstallBtn');
+  if (!("serviceWorker" in navigator)) return;
 
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        if (pwaBanner) {
-            pwaBanner.classList.remove('translate-y-32', 'opacity-0');
-        }
-    });
-
-    if (pwaBtn) {
-        pwaBtn.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User choice outcome: ${outcome}`);
-            deferredPrompt = null;
-            if (pwaBanner) {
-                pwaBanner.classList.add('translate-y-32', 'opacity-0');
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./sw.js")
+      .then((reg) => {
+        reg.addEventListener("updatefound", () => {
+          const worker = reg.installing;
+          if (!worker) return;
+          worker.addEventListener("statechange", () => {
+            if (worker.state === "installed" && navigator.serviceWorker.controller) {
+              showStatusToast(
+                "Доступне оновлення IQOSFree",
+                "Натисніть, щоб застосувати нову версію",
+                "Оновити",
+                () => {
+                  worker.postMessage({ type: "SKIP_WAITING" });
+                  window.location.reload();
+                },
+                0
+              );
             }
+          });
         });
+      })
+      .catch((err) => console.warn("[SW] Registration skipped:", err));
+  });
+}
+
+// --- Handle Manifest Shortcut Deep Links Safely ---
+function handleShortcutDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const action = params.get("action");
+  if (!action) return;
+
+  window.history.replaceState({}, document.title, window.location.pathname);
+  if (action === "sos") {
+    startBreathing();
+  } else if (action === "smoke") {
+    if (!dom.smokeButton.disabled) {
+      handleSmoke("regular");
+    } else {
+      showStatusToast("Вікно за графіком ще закрите", "Скористайтесь SOS або кнопкою поза графіком");
     }
+  } else if (action === "emergency") {
+    handleSmoke("emergency");
+  }
+}
 
-    // Init Firebase
-    try {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-    } catch (error) {
-        console.error("Firebase init error:", error);
-        await switchToLocalOnlyMode("Firebase init failed", error);
-        return;
+// --- Bootstrap ---
+document.addEventListener("DOMContentLoaded", () => {
+  cacheDom();
+
+  dom.sosButton.addEventListener("click", startBreathing);
+  dom.closeBreatheBtn.addEventListener("click", stopBreathing);
+  dom.breatheModal.addEventListener("close", stopBreathing);
+
+  dom.smokeButton.addEventListener("click", () => handleSmoke("regular"));
+  dom.emergencySmokeButton.addEventListener("click", () => handleSmoke("emergency"));
+  dom.undoActionBtn.addEventListener("click", handleUndoSmoke);
+
+  dom.openSettingsButton.addEventListener("click", openSettingsModal);
+  dom.closeSettingsButton.addEventListener("click", closeSettingsModal);
+  dom.settingsModal.addEventListener("close", () => {
+    document.body.style.overflow = "";
+  });
+  dom.settingsModal.addEventListener("click", (e) => {
+    if (e.target === dom.settingsModal) closeSettingsModal();
+  });
+
+  dom.saveSettingsButton.addEventListener("click", handleSaveSettings);
+  dom.currencySelect.addEventListener("change", updateSettingsMoneyPreviews);
+  dom.packPrice.addEventListener("input", updateSettingsMoneyPreviews);
+  dom.packSize.addEventListener("input", updateSettingsMoneyPreviews);
+  dom.oldHabit.addEventListener("input", updateSettingsMoneyPreviews);
+  dom.desiredDailySticks.addEventListener("input", updateSettingsMoneyPreviews);
+
+  dom.exportBackupButton.addEventListener("click", handleExportBackup);
+  dom.importBackupButton.addEventListener("click", () => dom.importBackupInput.click());
+  dom.importBackupInput.addEventListener("change", handleImportFile);
+  dom.hardRefreshButton.addEventListener("click", handleHardRefresh);
+  dom.resetDataButton.addEventListener("click", handleResetData);
+
+  dom.statsTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      currentChartPeriod = tab.dataset.period || "day";
+      dom.statsTabs.forEach((t) => t.classList.toggle("active", t === tab));
+      renderFullDashboard();
+    });
+  });
+
+  dom.modeBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentChartMode = btn.dataset.mode || "sticks";
+      dom.modeBtns.forEach((b) => b.classList.toggle("active", b === btn));
+      renderFullDashboard();
+    });
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopRealtimeTicker();
+    } else {
+      renderFullDashboard();
+      startRealtimeTicker();
     }
+  });
 
-    // Handle Redirect Result
-    // Handle Redirect Result logic removed - using Popup now
-
-
-    // Auth State Listener
-    onAuthStateChanged(auth, async (user) => {
-        if (isLocalOnlyMode) {
-            await loadData();
-            return;
-        }
-        if (user) {
-            userId = user.uid;
-            if (user.isAnonymous) {
-                userStatusDisplay.textContent = "Анонімний режим";
-                accountBadge.textContent = "LOCAL-ONLY";
-                accountBadge.classList.replace('hidden', 'inline-block');
-                accountBadge.className = "text-[8px] px-1.5 py-0.5 rounded font-bold inline-block bg-amber-500/20 text-amber-500";
-                signInGoogleButton.classList.remove('hidden'); 
-                signOutButton.classList.add('hidden'); 
-            } else {
-                const userName = user.displayName || user.email || "Користувач";
-                userStatusDisplay.textContent = `Привіт, ${userName}!`;
-                accountBadge.textContent = "GOOGLE SYNC";
-                accountBadge.classList.replace('hidden', 'inline-block');
-                accountBadge.innerHTML = `GOOGLE SYNC <span class="text-[8px] bg-slate-800 text-emerald-500 px-1.5 py-0.5 rounded-md font-mono border border-emerald-500/20">v2.4.0</span>`;
-                accountBadge.className = "text-[8px] px-1.5 py-0.5 rounded font-bold inline-block bg-emerald-500/20 text-emerald-500";
-                signInGoogleButton.classList.add('hidden'); 
-                signOutButton.classList.remove('hidden'); 
-            }
-
-            // --- NUCLEAR SERVER RESET LOGIC ---
-            if (localStorage.getItem('FORCE_FIREBASE_RESET') === 'true') {
-                console.log("[AUTH] NUCLEAR RESET FLAG DETECTED. Wiping Firestore...");
-                updateSyncStatus('syncing');
-                try {
-                    const dataRefForce = doc(db, `artifacts/${appId}/users/${userId}/smokingData/data`);
-                    const nukeData = getDefaultAppData();
-                    nukeData.updatedAt = Date.now() + 5000; // 5 seconds in future
-                    await setDoc(dataRefForce, nukeData);
-                    localStorage.removeItem('FORCE_FIREBASE_RESET');
-                    console.log("[AUTH] Firestore wiped successfully. Flag cleared.");
-                    updateSyncStatus('online');
-                } catch (e) {
-                    console.error("[AUTH] Firestore wipe failed:", e);
-                    updateSyncStatus('error');
-                }
-            }
-            // ----------------------------------
-
-            if (!isInitialAuthCheckComplete || (appData.currentUserId !== userId)) {
-                appData.currentUserId = userId;
-                await loadData(); 
-            }
-        } else {
-            console.log("No user.");
-            userId = null; 
-            userStatusDisplay.textContent = "Ви не увійшли"; 
-            signInGoogleButton.classList.remove('hidden'); 
-            signOutButton.classList.add('hidden'); 
-
-            if (!isInitialAuthCheckComplete) {
-                try {
-                    await signInAnonymously(auth);
-                } catch (e) {
-                    console.error("Anon sign-in failed", e);
-                    await switchToLocalOnlyMode("Anonymous auth failed", e);
-                }
-            } else {
-                // User signed out, keep local data for now instead of resetting
-                console.log("User signed out. Preserving local data.");
-                // appData = getDefaultAppData(); // Removed reset to prevent data loss on logout
-                await loadData();
-            }
-        }
-        isInitialAuthCheckComplete = true; 
-    });
-
-    // Зберігаємо прогрес при закритті вкладки/браузера
-    window.addEventListener('beforeunload', () => {
-        saveLocalData(appData);
-    });
-
-    // Зберігаємо прогрес коли користувач згортає вкладку або застосунок
-    document.addEventListener('visibilitychange', async () => {
-        if (document.visibilityState === 'hidden') {
-            console.log('[visibilitychange] Saving data before hiding...');
-            appData.updatedAt = Date.now();
-            saveLocalData(appData);
-            // Force sync to Firebase when going background
-            if (dataRef && userId) {
-                try {
-                    await setDoc(dataRef, appData);
-                    console.log('[visibilitychange] Sync to Firebase successful');
-                } catch (e) {
-                    console.error('[visibilitychange] Sync to Firebase failed', e);
-                }
-            }
-        }
-    });
-
-    setInterval(updateUI, 1000);
+  renderFullDashboard();
+  startRealtimeTicker();
+  setupPwaAndServiceWorker();
+  handleShortcutDeepLink();
 });
-
